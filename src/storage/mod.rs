@@ -32,10 +32,10 @@ pub enum StorageError {
 // Note type
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Note {
-    name: String,
-    freq: u16,
+    pub name: String,
+    pub freq: u16,
     // To be changed to Chrono data later
-    last_accessed: String,
+    pub last_accessed: String,
 }
 
 // Prints Note values, each on a new line
