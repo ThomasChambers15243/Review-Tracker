@@ -1,9 +1,7 @@
-use std::{collections::HashMap, error::Error, io::{self, Write}};
-use std::{thread, time::Duration, process};
-
+use std::{collections::HashMap, process, io::{self, Write}};
 
 // Crates
-use dialoguer::{theme::ColorfulTheme, Input, InputValidator, Select};
+use dialoguer::{theme::ColorfulTheme, Input, Select};
 use lazy_static::lazy_static;
 
 // Mods
@@ -13,8 +11,8 @@ use storage::Note;
 use thiserror::Error;
 use tracker::load_map;
 
-// User flag for weather they want to enable screen clearing?
-const SCREEN_CLEARING_CHOICES: &'static [&str;2] = &["Yes", "No"];
+// Choice menus
+const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
 
 const MAIN_MENU_CHOICES: &'static [&str;5] = &[
     "Add Note",
@@ -23,6 +21,7 @@ const MAIN_MENU_CHOICES: &'static [&str;5] = &[
     "Generate Review",
     "Quit"
     ];
+
 
 // Instantiated static during runtime
 lazy_static! {
@@ -49,13 +48,13 @@ fn main() {
     //let mut clear: bool = false;
     let clear_choice = Select::new()
         .with_prompt(format!("Enable screen clearning [\n({}Warning{} - Wipes current terminal",COLOURS["RED"],COLOURS["RESET"]))
-        .items(SCREEN_CLEARING_CHOICES)
+        .items(YES_NO_CHOICES)
         .default(0)
         .interact()
         .unwrap();
     unsafe {
-        match SCREEN_CLEARING_CHOICES[clear_choice] {
-            "Yes" => clear = true,
+        match YES_NO_CHOICES[clear_choice] {
+            "YES" => clear = true,
             _ => clear = false,
     }
 }
@@ -107,8 +106,6 @@ fn clear_screen() {
     // Restore cursor to the saved position and clear everything below
     unsafe {
         if clear {
-            // Artifical wait so there is time to read the message before exit.
-            thread::sleep(Duration::from_secs_f32(0.5));    
             print!("\x1B[2J\x1B[H");
             io::stdout().flush().unwrap();
         }
@@ -134,26 +131,69 @@ where
 // Requests a name from the user, validates the name
 // and creates as new Note, adding it to the map.
 fn io_add_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_error> {            
-    let name = Input::new()
-    .with_prompt("Enter the Notes Name")
-    .validate_with(|input: &String| -> Result<(), &str> {
-        match note_map.contains_key(&input.to_lowercase()) {
-            false => Ok(()),
-            true => Err("Note with same name already added\nTry Again"),
-        }
-    })
-    .interact()
-    .unwrap();
 
+    // Notes values
     let freq: u16 = 0;
-    let last_accessed = "Today".to_string();
+    let last_accessed = "Today".to_string();    
+    let name: String = Input::new()
+        .with_prompt("Enter the New Notes Name")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            // Check Note of same is not already in map
+            match note_map.contains_key(&input.to_lowercase()) {
+                false => Ok(()),
+                true => Err("Note with same name already added\nTry Again"),
+            }
+        })
+        .interact()
+        .unwrap();
 
-    note_map.insert(name.clone(), Note::new(name, freq, last_accessed));
-    
-    Ok("Success! Note Added".to_string())    
+    // Gives user an out incase they're filled with a deep regret over
+    // their note choice
+    let sure = Select::new()
+        .with_prompt("Add Note?")
+        .items(YES_NO_CHOICES)
+        .default(0)
+        .interact()
+        .unwrap();
+
+    match YES_NO_CHOICES[sure] {
+        "YES" => {
+            note_map.insert(name.clone(), Note::new(name, freq, last_accessed));
+            Ok("Success! Note Added".to_string())    
+        },
+        _ => Err(main_error::driver_error("No Note was added".to_string()))
+    }
 }
 
+
+// Gets and removes a Note from the map
 fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_error> {
-    Ok("Success! Note Removed".to_string())
+    let name: String = Input::new()
+        .with_prompt("Enter Notes Name to be Removed")
+        .interact()
+        .unwrap();
+    
+    // Gives user an out incase they're filled with a deep regret over
+    // their note choice
+    let sure = Select::new()
+        .with_prompt("Remove Note?")
+        .items(YES_NO_CHOICES)
+        .default(0)
+        .interact()
+        .unwrap();
+
+    // Gives user an out incase they're filled with a deep regret over
+    // their note choice
+    match YES_NO_CHOICES[sure] {
+        "YES" => {
+            // Removes note from map
+            if let Some((k,v)) = note_map.remove_entry(&name) {
+                Ok(format!("{k} was remove with values:\nFreq: {}\nLast Accessed:{}", v.freq, v.last_accessed))
+            } else {
+                Err(main_error::driver_error("Could not find note to remove".to_string()))
+            }
+        },
+        _ => Err(main_error::driver_error("No Note was added".to_string()))
+    }
 }
 
