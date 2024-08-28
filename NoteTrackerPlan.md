@@ -50,7 +50,12 @@ Architecture
         - reviews mangement
         
 
-Bug List
+# ToDo
+- Improve map view sort in tracker to sort by 
+	1. alpha
+	2. numerical
+	3. ascii number
+# Bug List
 - Loading Map
 	- Errors when json is empty, causing cascading errors upwards.
     

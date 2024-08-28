@@ -1,6 +1,7 @@
 use crate::storage::*;
-use std::{clone, collections::HashMap};
+use std::collections::HashMap;
 use thiserror::Error;
+use itertools::Itertools;
 
 use lazy_static::lazy_static;
 // Instantiated static during runtime
@@ -21,7 +22,7 @@ lazy_static! {
 
 #[derive(Debug, Error)]
 pub enum TrackerError{
-    #[error("There was a storage error: {0}")]
+    #[error("{0}")]
     StorageErr(#[from] StorageError),
 
     #[error("There was an unexpected error: {0}")]
@@ -52,11 +53,11 @@ pub fn save_map(map: HashMap<String, Note>) -> Result<(), TrackerError>{
 
 // Prints out the hash map of notes in an arbitary order
 pub fn view_map(map: &HashMap<String, Note>) {
-    for (_, note) in map{
+    for key in map.keys().sorted(){
         println!("{}{}{} has been reviewed {}{}{} times. Last reviewed, {}{}{}.",
-                    ASCII["BOLD"], note.name, ASCII["RESET"],
-                    ASCII["BOLD"], note.freq, ASCII["RESET"],
-                    ASCII["BOLD"], note.last_accessed, ASCII["RESET"]
+                    ASCII["BOLD"], map[key].name, ASCII["RESET"],
+                    ASCII["BOLD"], map[key].freq, ASCII["RESET"],
+                    ASCII["BOLD"], map[key].last_accessed, ASCII["RESET"]
         );
     }
 }

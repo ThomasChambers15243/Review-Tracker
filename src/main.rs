@@ -21,23 +21,7 @@ const MAIN_MENU_CHOICES: &'static [&str;5] = &[
     "Quit"
     ];
 
-
-// // Instantiated static during runtime
-// lazy_static! {
-//     // List of FG codes for ASCII
-//     // https://i.sstatic.net/9UVnC.png 
-//     // ASCII escape code
-//     // https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
-//     static ref ASCII: HashMap<&'static str, &'static str> = { 
-//         let mut map = HashMap::new();
-//         map.insert("RESET", "\x1B[0m");
-//         map.insert("BOLD", "\x1B[1m");
-//         map.insert("RED", "\x1B[31m");
-//         map.insert("GREEN", "\x1B[32m");
-//         map
-//     };
-// }
-static mut clear: bool = false;
+static mut CLEAR: bool = false;
 
 #[derive(Error, Debug)]
 enum main_error {
@@ -47,17 +31,17 @@ enum main_error {
     
 fn main() {
     // Enable screen clearing
-    //let mut clear: bool = false;
+    //let mut CLEAR: bool = false;
     let clear_choice = Select::new()
-        .with_prompt(format!("Enable screen clearning [\n({}Warning{} - Wipes current terminal",ASCII["RED"],ASCII["RESET"]))
+        .with_prompt(format!("Enable screen clearning\n{}Warning{} - Wipes current terminal",ASCII["RED"],ASCII["RESET"]))
         .items(YES_NO_CHOICES)
         .default(0)
         .interact()
         .unwrap();
     unsafe {
         match YES_NO_CHOICES[clear_choice] {
-            "YES" => clear = true,
-            _ => clear = false,
+            "YES" => CLEAR = true,
+            _ => CLEAR = false,
     }
 }
     // Load in notes
@@ -65,7 +49,12 @@ fn main() {
     let mut note_map: HashMap<String, Note> = HashMap::new();
     match load_map() {
         Ok(m) => note_map = m,
-        Err(e) => panic!("Could not load note data, check config file and json file.\nError {e}"),
+        Err(e) => {
+            println!("Error: Could not load note data, check config file and json file.
+                    \nError {e}
+                    \nEnding Process...");
+            process::exit(1);
+        },
     };
     
     // Main Loop
@@ -87,8 +76,11 @@ fn main() {
             "Remove Note" => {
                 handle_map_operation(&mut note_map, |m| io_remove_note(m));
             }
-            "View Notes" => view_map(&note_map),
-            "Generate Review" => println!("woah"),
+            "View Notes" => 
+                view_map(&note_map),
+            "Generate Review" => {
+                handle_map_operation(&mut note_map, |m| io_generate_review(m));
+            },
             "Quit" => {            
                 clear_screen(); // Clear screen and reset cursor before exiting
                 process::exit(0);
@@ -107,7 +99,7 @@ fn main() {
 fn clear_screen() {
     // Restore cursor to the saved position and clear everything below
     unsafe {
-        if clear {
+        if CLEAR {
             print!("\x1B[2J\x1B[H");
             io::stdout().flush().unwrap();
         }
@@ -199,3 +191,7 @@ fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_e
     }
 }
 
+
+fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, main_error> {
+    Ok("WOOP".to_string())
+}

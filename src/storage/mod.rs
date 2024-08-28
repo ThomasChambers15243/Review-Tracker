@@ -22,7 +22,7 @@ pub enum StorageError {
     #[error("There was an I/O errors: {0}")]
     Io(#[from] io::Error),
 
-    #[error("There was an Serde Json Error: {0}")]
+    #[error("There was an Json Error: {0}")]
     SerdeJson(#[from] serde_json::Error),
 
     #[error("There was an unexpected error: {0}")]
