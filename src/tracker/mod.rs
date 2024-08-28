@@ -1,5 +1,6 @@
 use crate::storage::*;
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
+use rand::random;
 use thiserror::Error;
 use itertools::Itertools;
 
@@ -16,6 +17,7 @@ lazy_static! {
         map.insert("BOLD", "\x1B[1m");
         map.insert("RED", "\x1B[31m");
         map.insert("GREEN", "\x1B[32m");
+        map.insert("BLUE", "\x1B[27m");
         map
     };
 }
@@ -60,26 +62,39 @@ pub fn view_map(map: &HashMap<String, Note>) {
                     ASCII["BOLD"], map[key].last_accessed, ASCII["RESET"]
         );
     }
+    println!("\n");
 }
 
 
-// Generates a vector of notes to review 
-pub fn generate_review() {}
-
 // Updates the note values map within map
-pub fn update_reviewed_notes(notes: Vec<Note>) {}
+pub fn update_reviewed_notes(note_map: &mut HashMap<String, Note>, reviewed: Vec<Note>) {
+    for note in note_map.values_mut() {
+        if reviewed.iter().any(|v| v == note) {
+            note.freq += 1;
+            note.last_accessed = "Today".to_string();
+        }
+    }
+}
 
-pub fn manual_note_update(note: Note, freq: u16, last_accessed: String) { 
-    std::unimplemented!("Waiting for date implementation")
+pub fn manual_note_update(note_map: Note, freq: u16, last_accessed: String) { 
+    std::todo!("Write method")
 }
 
 
 // Review Calculations \\
 
-fn find_least_common_notes(map: &HashMap<String, Note>) {}
+pub fn find_least_common_notes(note_map: &HashMap<String, Note>, amount: usize) -> Vec<Note> {    
+    let mut notes: Vec<&Note> = note_map.values().collect();
 
-fn find_oldest_notes(map: &HashMap<String, Note>) {}
+    notes.sort_by(|a, b| a.freq.cmp(&b.freq));
+
+    notes.iter().take(amount).cloned().cloned().collect_vec()
+}
+
+fn find_oldest_notes(note_map: &HashMap<String, Note>) -> Vec<Note> {
+    std::todo!("Write after date implementation")
+}
 
 fn calculate_time_difference(date_1: String, date_2: String) {
-    std::unimplemented!("Waiting for date implementation")
+    std::todo!("Write after date implementation")
 }

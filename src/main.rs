@@ -8,7 +8,7 @@ pub mod storage;
 pub mod tracker;
 use storage::Note;
 use thiserror::Error;
-use tracker::{load_map, view_map, ASCII};
+use tracker::{find_least_common_notes, load_map, update_reviewed_notes, view_map, ASCII};
 
 // Choice menus
 const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
@@ -31,7 +31,6 @@ enum main_error {
     
 fn main() {
     // Enable screen clearing
-    //let mut CLEAR: bool = false;
     let clear_choice = Select::new()
         .with_prompt(format!("Enable screen clearning\n{}Warning{} - Wipes current terminal",ASCII["RED"],ASCII["RESET"]))
         .items(YES_NO_CHOICES)
@@ -46,18 +45,19 @@ fn main() {
 }
     // Load in notes
     println!("Loading...");
-    let mut note_map: HashMap<String, Note> = HashMap::new();
+    let mut note_map: HashMap<String, Note>;
     match load_map() {
         Ok(m) => note_map = m,
         Err(e) => {
             println!("Error: Could not load note data, check config file and json file.
                     \nError {e}
                     \nEnding Process...");
-            process::exit(1);
-        },
-    };
-    
+                    process::exit(1);
+                },
+            };
+            
     // Main Loop
+    clear_screen();
     loop {
         let menu_choice = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Main Menu")
@@ -166,7 +166,7 @@ fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_e
         .with_prompt("Enter Notes Name to be Removed")
         .interact()
         .unwrap();
-    
+
     // Gives user an out incase they're filled with a deep regret over
     // their note choice
     let sure = Select::new()
@@ -180,18 +180,44 @@ fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_e
     // their note choice
     match YES_NO_CHOICES[sure] {
         "YES" => {
-            // Removes note from map
-            if let Some((k,v)) = note_map.remove_entry(&name) {
-                Ok(format!("{k} was remove with values:\nFreq: {}\nLast Accessed:{}", v.freq, v.last_accessed))
-            } else {
-                Err(main_error::driver_error("Could not find note to remove".to_string()))
+            if let Some(note_name) = note_map.keys()
+                .find(|key| key.to_lowercase() == name.to_lowercase()).cloned()
+            {
+                if let Some(note) = note_map.remove(&note_name) {
+                    return Ok(format!(
+                        "{} was removed with values:\nFreq: {}\nLast Accessed: {}",
+                        note.name, note.freq, note.last_accessed
+                    ));
+                } else {
+                    return Err(main_error::driver_error("Could not find note to remove".to_string()));
+                }
             }
+            Err(main_error::driver_error("Note not found".to_string()))
         },
-        _ => Err(main_error::driver_error("No Note was added".to_string()))
+        _ => Err(main_error::driver_error("No Note was removed".to_string())),
     }
+    
 }
 
 
 fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, main_error> {
-    Ok("WOOP".to_string())
+    let reviewed: Vec<Note> = find_least_common_notes(note_map, 3);
+    println!("Notes to Review:\n");
+    for note in &reviewed {
+        println!("{}{}{}",ASCII["BLUE"], note.name, ASCII["BLUE"])
+    }
+    let save = Select::new()
+        .with_prompt("Save Review?")
+        .items(YES_NO_CHOICES)
+        .default(0)
+        .interact()
+        .unwrap();
+
+    match YES_NO_CHOICES[save] {
+        "YES" => {
+            update_reviewed_notes(note_map, reviewed);
+            Ok("Notes Saved".to_string())
+        },
+        _ => Err(main_error::driver_error("Notes were not saved".to_string()))
+    }
 }

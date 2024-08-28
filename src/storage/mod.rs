@@ -30,7 +30,7 @@ pub enum StorageError {
 }
 
 // Note type
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Note {
     pub name: String,
     pub freq: u16,
@@ -44,6 +44,12 @@ impl fmt::Display for Note {
         write!(f, "{}", format!(
             "Name: {}\nFreq: {}\nLast Accessed: {}",
             self.name, self.freq, self.last_accessed))
+    }
+}
+
+impl PartialEq for Note {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
     }
 }
 

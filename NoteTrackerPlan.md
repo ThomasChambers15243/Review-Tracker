@@ -19,20 +19,17 @@ Collection of objects, stored permanently, with unique name-as-strings identifie
 
 ```json
 	Name {
-		Frequency: int,
+		name: String,
+		freq: int,
+		// Maybe Chrono data
 		last accessed: date,
 	}
 ```	
 
 ```Rust
-Generate_Review(num, default=5) {
-		// num < =3
-		// get least reviewed
-		// else
-		// get least reviewed
-		// any gaps
-		// get oldest reviwes
-		// update records
+Generate_Review(note_map: HasMap) {
+		// Get 3 least common
+		// Get 2 oldest
 	
 	}
 ```
@@ -55,6 +52,7 @@ Architecture
 	1. alpha
 	2. numerical
 	3. ascii number
+- Change note view to notes as a formated table	
 # Bug List
 - Loading Map
 	- Errors when json is empty, causing cascading errors upwards.
