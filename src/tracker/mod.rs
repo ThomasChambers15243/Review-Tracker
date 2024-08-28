@@ -1,7 +1,23 @@
 use crate::storage::*;
 use std::{clone, collections::HashMap};
-use serde_json::error;
 use thiserror::Error;
+
+use lazy_static::lazy_static;
+// Instantiated static during runtime
+lazy_static! {
+    // List of FG codes for ASCII
+    // https://i.sstatic.net/9UVnC.png 
+    // ASCII escape code
+    // https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+    pub static ref ASCII: HashMap<&'static str, &'static str> = { 
+        let mut map = HashMap::new();
+        map.insert("RESET", "\x1B[0m");
+        map.insert("BOLD", "\x1B[1m");
+        map.insert("RED", "\x1B[31m");
+        map.insert("GREEN", "\x1B[32m");
+        map
+    };
+}
 
 #[derive(Debug, Error)]
 pub enum TrackerError{
@@ -37,8 +53,11 @@ pub fn save_map(map: HashMap<String, Note>) -> Result<(), TrackerError>{
 // Prints out the hash map of notes in an arbitary order
 pub fn view_map(map: &HashMap<String, Note>) {
     for (_, note) in map{
-        println!("{} has been reviewed {} times. Last reviewed, {}.",
-                    note.name, note.freq, note.last_accessed);
+        println!("{}{}{} has been reviewed {}{}{} times. Last reviewed, {}{}{}.",
+                    ASCII["BOLD"], note.name, ASCII["RESET"],
+                    ASCII["BOLD"], note.freq, ASCII["RESET"],
+                    ASCII["BOLD"], note.last_accessed, ASCII["RESET"]
+        );
     }
 }
 

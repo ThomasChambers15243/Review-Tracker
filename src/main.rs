@@ -2,14 +2,13 @@ use std::{collections::HashMap, process, io::{self, Write}};
 
 // Crates
 use dialoguer::{theme::ColorfulTheme, Input, Select};
-use lazy_static::lazy_static;
 
 // Mods
 pub mod storage;
 pub mod tracker;
 use storage::Note;
 use thiserror::Error;
-use tracker::load_map;
+use tracker::{load_map, view_map, ASCII};
 
 // Choice menus
 const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
@@ -23,18 +22,21 @@ const MAIN_MENU_CHOICES: &'static [&str;5] = &[
     ];
 
 
-// Instantiated static during runtime
-lazy_static! {
-    // List of FG codes for colours
-    // https://i.sstatic.net/9UVnC.png 
-    static ref COLOURS: HashMap<&'static str, &'static str> = { 
-        let mut map = HashMap::new();
-        map.insert("RESET", "\x1B[0m");
-        map.insert("RED", "\x1B[31m");
-        map.insert("GREEN", "\x1B[32m");
-        map
-    };
-}
+// // Instantiated static during runtime
+// lazy_static! {
+//     // List of FG codes for ASCII
+//     // https://i.sstatic.net/9UVnC.png 
+//     // ASCII escape code
+//     // https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+//     static ref ASCII: HashMap<&'static str, &'static str> = { 
+//         let mut map = HashMap::new();
+//         map.insert("RESET", "\x1B[0m");
+//         map.insert("BOLD", "\x1B[1m");
+//         map.insert("RED", "\x1B[31m");
+//         map.insert("GREEN", "\x1B[32m");
+//         map
+//     };
+// }
 static mut clear: bool = false;
 
 #[derive(Error, Debug)]
@@ -47,7 +49,7 @@ fn main() {
     // Enable screen clearing
     //let mut clear: bool = false;
     let clear_choice = Select::new()
-        .with_prompt(format!("Enable screen clearning [\n({}Warning{} - Wipes current terminal",COLOURS["RED"],COLOURS["RESET"]))
+        .with_prompt(format!("Enable screen clearning [\n({}Warning{} - Wipes current terminal",ASCII["RED"],ASCII["RESET"]))
         .items(YES_NO_CHOICES)
         .default(0)
         .interact()
@@ -85,7 +87,7 @@ fn main() {
             "Remove Note" => {
                 handle_map_operation(&mut note_map, |m| io_remove_note(m));
             }
-            "View Notes" => println!("woah"),
+            "View Notes" => view_map(&note_map),
             "Generate Review" => println!("woah"),
             "Quit" => {            
                 clear_screen(); // Clear screen and reset cursor before exiting
@@ -120,9 +122,9 @@ where
 { 
     match operation(note_map) {
         Ok(message) => {
-            println!("{}{}{}", COLOURS["GREEN"], message, COLOURS["RESET"]);
+            println!("{}{}{}", ASCII["GREEN"], message, ASCII["RESET"]);
         },                    
-        Err(e) => println!("{} {} {}",COLOURS["RED"], e, COLOURS["RESET"]),
+        Err(e) => println!("{} {} {}",ASCII["RED"], e, ASCII["RESET"]),
     };
 }
 
