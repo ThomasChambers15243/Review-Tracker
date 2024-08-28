@@ -47,6 +47,11 @@ impl fmt::Display for Note {
     }
 }
 
+impl Note {
+    pub fn new(name: String, freq: u16, last_accessed: String) -> Self {
+        Self { name, freq, last_accessed }
+    }
+}
 
 // Save Fucntions \\
 
