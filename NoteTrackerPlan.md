@@ -49,4 +49,8 @@ Architecture
         - Review updatiung
         - reviews mangement
         
+
+Bug List
+- Loading Map
+	- Errors when json is empty, causing cascading errors upwards.
     
