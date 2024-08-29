@@ -76,6 +76,7 @@ pub fn update_reviewed_notes(note_map: &mut HashMap<String, Note>, reviewed: Vec
     }
 }
 
+#[allow(unused)]
 pub fn manual_note_update(note_map: HashMap<String, Note>, freq: u16, last_accessed: String) { 
     std::todo!("Write method")
 }
@@ -90,11 +91,12 @@ pub fn find_least_common_notes(note_map: &HashMap<String, Note>, amount: usize) 
 
     notes.iter().take(amount).cloned().cloned().collect_vec()
 }
-
+#[allow(unused)]
 fn find_oldest_notes(note_map: &HashMap<String, Note>) -> Vec<Note> {
     std::todo!("Write after date implementation")
 }
 
+#[allow(unused)]
 fn calculate_time_difference(date_1: String, date_2: String) {
     std::todo!("Write after date implementation")
 }
