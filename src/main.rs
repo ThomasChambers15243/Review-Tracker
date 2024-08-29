@@ -21,15 +21,30 @@ const MAIN_MENU_CHOICES: &'static [&str;5] = &[
     "Quit"
     ];
 
+// Boolean flag to indicate whether the user want to clear the screen after inputs or not
 static mut CLEAR: bool = false;
 
 #[derive(Error, Debug)]
-enum main_error {
+enum MainError {
     #[error("{0}")]
-    driver_error(String)
+    DriverError(String)
 }
     
 fn main() {
+    // Loads in notes
+    println!("Loading...");
+    let mut note_map: HashMap<String, Note>;
+    
+    match load_map() {
+        Ok(m) => note_map = m,
+        Err(e) => {
+            println!("Error: Could not load note data, check config file and json file.
+                    \nError {e}
+                    \nEnding Process...");
+                    process::exit(1);
+                },
+            };
+
     // Enable screen clearing
     let clear_choice = Select::new()
         .with_prompt(format!("Enable screen clearning\n{}Warning{} - Wipes current terminal",ASCII["RED"],ASCII["RESET"]))
@@ -43,19 +58,7 @@ fn main() {
             _ => CLEAR = false,
     }
 }
-    // Load in notes
-    println!("Loading...");
-    let mut note_map: HashMap<String, Note>;
-    match load_map() {
-        Ok(m) => note_map = m,
-        Err(e) => {
-            println!("Error: Could not load note data, check config file and json file.
-                    \nError {e}
-                    \nEnding Process...");
-                    process::exit(1);
-                },
-            };
-            
+
     // Main Loop
     clear_screen();
     loop {
@@ -76,8 +79,13 @@ fn main() {
             "Remove Note" => {
                 handle_map_operation(&mut note_map, |m| io_remove_note(m));
             }
-            "View Notes" => 
-                view_map(&note_map),
+            "View Notes" => {
+                // Handle case where map is empty
+                match io_handle_empty_map(&note_map) {
+                    Ok(_) => view_map(&note_map),
+                    Err(message) => println!("{}", message),
+                }
+            },
             "Generate Review" => {
                 handle_map_operation(&mut note_map, |m| io_generate_review(m));
             },
@@ -110,7 +118,7 @@ fn clear_screen() {
 // Keeps main loop cleaner
 fn handle_map_operation<F>(note_map: &mut HashMap<String, Note>, operation: F) 
 where 
-    F: Fn(&mut HashMap<String, Note>) -> Result<String, main_error>
+    F: Fn(&mut HashMap<String, Note>) -> Result<String, MainError>
 { 
     match operation(note_map) {
         Ok(message) => {
@@ -124,8 +132,7 @@ where
 // Gets and adds a new Note to the note name
 // Requests a name from the user, validates the name
 // and creates as new Note, adding it to the map.
-fn io_add_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_error> {            
-
+fn io_add_note(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {            
     // Notes values
     let freq: u16 = 0;
     let last_accessed = "Today".to_string();    
@@ -155,13 +162,15 @@ fn io_add_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_erro
             note_map.insert(name.clone(), Note::new(name, freq, last_accessed));
             Ok("Success! Note Added".to_string())    
         },
-        _ => Err(main_error::driver_error("No Note was added".to_string()))
+        _ => Err(MainError::DriverError("No Note was added".to_string()))
     }
 }
 
 
 // Gets and removes a Note from the map
-fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_error> {
+fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
+    // Handle case where map is empty
+    io_handle_empty_map(note_map)?;
     let name: String = Input::new()
         .with_prompt("Enter Notes Name to be Removed")
         .interact()
@@ -189,18 +198,22 @@ fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, main_e
                         note.name, note.freq, note.last_accessed
                     ));
                 } else {
-                    return Err(main_error::driver_error("Could not find note to remove".to_string()));
+                    return Err(MainError::DriverError("Could not find note to remove".to_string()));
                 }
             }
-            Err(main_error::driver_error("Note not found".to_string()))
+            Err(MainError::DriverError("Note not found".to_string()))
         },
-        _ => Err(main_error::driver_error("No Note was removed".to_string())),
+        _ => Err(MainError::DriverError("No Note was removed".to_string())),
     }
     
 }
 
 
-fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, main_error> {
+fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
+    // Handle case where map is empty
+    io_handle_empty_map(note_map)?;
+
+    // Start review
     let reviewed: Vec<Note> = find_least_common_notes(note_map, 3);
     println!("Notes to Review:\n");
     for note in &reviewed {
@@ -218,6 +231,16 @@ fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, ma
             update_reviewed_notes(note_map, reviewed);
             Ok("Notes Saved".to_string())
         },
-        _ => Err(main_error::driver_error("Notes were not saved".to_string()))
+        _ => Err(MainError::DriverError("Notes were not saved".to_string()))
+    }
+}
+
+fn io_handle_empty_map(note_map: &HashMap<String, Note>) -> Result<String, MainError> {
+    // Check map is empty
+    match note_map.is_empty() {
+        true => Err(MainError::DriverError(format!(
+                "{}No notes to review\nTry adding some notes with {}Add Note{}",
+                ASCII["GREEN"], ASCII["BOLD"], ASCII["RESET"]).to_string())),
+        false => Ok("".to_string()),
     }
 }

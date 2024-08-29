@@ -10,6 +10,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 // Errors
 use thiserror::Error;
+mod settings;
+
 
 // For Later
 // Date and time 
@@ -24,6 +26,9 @@ pub enum StorageError {
 
     #[error("There was an Json Error: {0}")]
     SerdeJson(#[from] serde_json::Error),
+
+    #[error("There was  file error: {0}")]
+    File(String),
 
     #[error("There was an unexpected error: {0}")]
     Custom(String),
@@ -62,17 +67,29 @@ impl Note {
 // Save Fucntions \\
 
 // Loads data from saved .json into a vector of note structs
-pub fn load_json_data() -> Result<Vec<Note>, StorageError>{
-    // Read from file
-    let file = fs::read_to_string("notes.json")?;
-    let json_data: serde_json::Value = serde_json::from_str(&file)?;
+pub fn load_json_data() -> Result<Vec<Note>, StorageError>{     
+    // Check file path structure, if no file, create file
+    if !settings::valid_json_path() {
+        settings::create_json_file()?;
+    }
     
-    // Load into vector
-    let notes: Vec<Note> = json_data.as_object().unwrap().values()
-    .map(|v| serde_json::from_value::<Note>(v.clone()).map_err(StorageError::from))
-    .collect::<Result<Vec<Note>, StorageError>>()?;
+    let json_file_path = settings::get_json_path()?;
+    // Read from file
+    let file = fs::read_to_string(json_file_path)?;
 
-    Ok(notes)
+    // If file is empty
+    if file.len() == 0 {
+        Ok(vec![])
+    } else {
+        // Create json value
+        let json_data: serde_json::Value = serde_json::from_str(&file)?;        
+        // Load into vector
+        let notes: Vec<Note> = json_data.as_object().unwrap().values()
+        .map(|v| serde_json::from_value::<Note>(v.clone()).map_err(StorageError::from))
+        .collect::<Result<Vec<Note>, StorageError>>()?;
+
+        Ok(notes)
+    }
 }
 
 // Saves (writes) data from a vector of Note structs to a .json files
