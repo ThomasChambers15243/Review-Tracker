@@ -76,7 +76,7 @@ pub fn update_reviewed_notes(note_map: &mut HashMap<String, Note>, reviewed: Vec
     }
 }
 
-pub fn manual_note_update(note_map: Note, freq: u16, last_accessed: String) { 
+pub fn manual_note_update(note_map: HashMap<String, Note>, freq: u16, last_accessed: String) { 
     std::todo!("Write method")
 }
 

@@ -1,17 +1,16 @@
 // Files read/write
 use std::{
+    collections::BTreeMap, 
+    fmt::{self}, 
     fs,
-    collections::BTreeMap,
-    io,
-    io::Write,
-    fmt::{self},
+    fs::File, 
+    path::Path,
+    io::{self, BufRead, Write},
 };
 // JSON
 use serde::{Deserialize, Serialize};
 // Errors
 use thiserror::Error;
-mod settings;
-
 
 // For Later
 // Date and time 
@@ -69,11 +68,11 @@ impl Note {
 // Loads data from saved .json into a vector of note structs
 pub fn load_json_data() -> Result<Vec<Note>, StorageError>{     
     // Check file path structure, if no file, create file
-    if !settings::valid_json_path() {
-        settings::create_json_file()?;
+    if !valid_json_path() {
+        create_json_file()?;        
     }
     
-    let json_file_path = settings::get_json_path()?;
+    let json_file_path = get_json_path()?;
     // Read from file
     let file = fs::read_to_string(json_file_path)?;
 
@@ -112,36 +111,37 @@ pub fn save_json_data(note_data: Vec<Note>) -> Result<(), StorageError>{
     Ok(())
 }
 
+pub fn get_json_path() -> Result<String, StorageError> {
+    Ok("notes.json".to_string())
+} 
 
-
-#[cfg(test)]
-mod storage_tests {
-    use super::*;
-
-    
-    #[test]
-    fn test_load() {
-        load_json_data();
-        assert_eq!(true,true);
-    }
-
-    #[test]
-    fn test_save() {
-        let note_data = vec![
-            Note {
-                name: "Prep - COMP510".to_string(),
-                freq: 2,
-                last_accessed: "20-08-2024".to_string(),
-            },
-            Note {
-                name: "Rust - The Slice Type".to_string(),
-                freq: 3,
-                last_accessed: "22-08-2024".to_string(),
-            },
-        ];
-        save_json_data(note_data);
-        assert_eq!(true,true);
-    }
-
+pub fn valid_json_path() -> bool {
+    Path::exists(Path::new("notes.json"))
 }
 
+pub fn create_json_file() -> Result<(), StorageError> {
+    match fs::File::create_new("notes.json") {
+        Ok(_) => Ok(()),
+        Err(e) => Err(StorageError::File(format!("Could not create file. Error: {e}"))),
+    }
+}
+
+pub fn get_note_names_from_file(path: &str) -> Result<Vec<String>, StorageError> {
+    if !Path::exists(Path::new(path)) {
+        return Err(StorageError::File("Could not find the file".to_string()));
+    }
+    let mut names: Vec<String> = vec![];
+    if let Ok(lines) = read_lines(path) {
+        for line in lines.flatten() {
+            names.push(line.trim().to_string());
+        }
+    };
+
+    Ok(names)
+}
+
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where P: AsRef<Path>, {
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
+}

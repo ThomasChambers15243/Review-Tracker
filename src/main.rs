@@ -6,18 +6,19 @@ use dialoguer::{theme::ColorfulTheme, Input, Select};
 // Mods
 pub mod storage;
 pub mod tracker;
-use storage::Note;
+use storage::{get_note_names_from_file, Note};
 use thiserror::Error;
 use tracker::{find_least_common_notes, load_map, save_map, update_reviewed_notes, view_map, ASCII};
 
 // Choice menus
 const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
 
-const MAIN_MENU_CHOICES: &'static [&str;5] = &[
+const MAIN_MENU_CHOICES: &'static [&str;6] = &[
     "Add Note",
     "Remove Note",
     "View Notes",
     "Generate Review",
+    "Generate Notes",
     "Quit"
     ];
 
@@ -98,6 +99,9 @@ fn main() {
                 clear_screen(); // Clear screen and reset cursor before exiting
                 process::exit(0);
             },
+            "Generate Notes" => {
+                handle_map_operation(&mut note_map, |m| io_generate_notes(m));
+            }
             _ => {
                 println!("Something went wrong, ending process");            
                 clear_screen();
@@ -108,12 +112,14 @@ fn main() {
 }
 
 fn sync_map(note_map: HashMap<String, Note>) -> Result<HashMap<String, Note>, MainError>{
-    save_map(note_map);
-    match load_map() {
-        Ok(m) => Ok(m),
-        Err(e) => Err(MainError::DriverError(format!("Error: Could not load note data, check config file and json file.
-                    \nError {e}"
-        ))),
+    match save_map(note_map) {
+        Err(e) => Err(MainError::DriverError(e.to_string())),
+        _ => match load_map() {
+                Ok(m) => Ok(m),
+                Err(e) => Err(MainError::DriverError(
+                format!("Error: Could not load note data, check config file and json file. \nError {e}"
+                ))),
+        }
     }
 }
 
@@ -139,6 +145,38 @@ where
         },                    
         Err(e) => println!("{} {} {}",ASCII["RED"], e, ASCII["RESET"]),
     };
+}
+
+fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
+    // Gets file path
+    let file_path: String = Input::new()
+        .with_prompt("Enter the file path")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            if input.chars().count() < 4 {
+                return Err("File Path must end with .txt");
+            }    
+            // Reverses string a chars, takes the first 4, then reverses it again    
+            let last_four: String = input.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();            
+            if last_four != ".txt" {
+                Err("File Path must end with .txt")
+            } else {
+                Ok(())
+            }
+        })
+        .interact()
+        .unwrap();
+
+    // Generate file path
+    match get_note_names_from_file(file_path.as_str()) {
+        Err(e) => Err(MainError::DriverError(format!(
+            "Could not get names, due to error: {e}"))),
+        Ok(note_names) => {
+            for name in note_names {
+                note_map.insert(name.clone(), Note::new(name, 0, "today".to_string()));
+            }            
+            Ok(format!("New Notes successfully added from file {}{}{}", ASCII["BOLD"], file_path , ASCII["RESET"]))
+        }
+    }
 }
 
 
@@ -226,12 +264,19 @@ fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, Ma
     // Handle case where map is empty
     io_handle_empty_map(note_map)?;
 
-    // Start review
+    // Get list of Notes to review
     let reviewed: Vec<Note> = find_least_common_notes(note_map, 3);
-    println!("Notes to Review:\n");
-    for note in &reviewed {
-        println!("{}{}{}",ASCII["BLUE"], note.name, ASCII["BLUE"])
+    // Formats and prints Notes to Review
+    println!("{}Notes to Review:{}", ASCII["BOLD"], ASCII["RESET"]);
+    for note in &reviewed {        
+        println!("{}{}:{} Reviewed {}{}{} times, last at {}{}",
+        ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
+        note.freq, ASCII["RESET"], ASCII["BOLD"], note.last_accessed
+        );
     }
+    // Create gap between next select
+    println!("\n");
+
     // Save Review
     let save = Select::new()
         .with_prompt("Save Review?")
@@ -248,6 +293,7 @@ fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, Ma
         _ => Err(MainError::DriverError("Notes were not saved".to_string()))
     }
 }
+
 
 fn io_handle_empty_map(note_map: &HashMap<String, Note>) -> Result<String, MainError> {
     // Check map is empty
