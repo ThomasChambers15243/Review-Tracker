@@ -8,7 +8,7 @@ pub mod storage;
 pub mod tracker;
 use storage::Note;
 use thiserror::Error;
-use tracker::{find_least_common_notes, load_map, update_reviewed_notes, view_map, ASCII};
+use tracker::{find_least_common_notes, load_map, save_map, update_reviewed_notes, view_map, ASCII};
 
 // Choice menus
 const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
@@ -34,16 +34,13 @@ fn main() {
     // Loads in notes
     println!("Loading...");
     let mut note_map: HashMap<String, Note>;
-    
     match load_map() {
-        Ok(m) => note_map = m,
+        Ok(map) => note_map = map,
         Err(e) => {
-            println!("Error: Could not load note data, check config file and json file.
-                    \nError {e}
-                    \nEnding Process...");
-                    process::exit(1);
-                },
-            };
+            println!("Could not load map due to error {}\nEnding Process...",e);
+            process::exit(1);
+        },
+    }
 
     // Enable screen clearing
     let clear_choice = Select::new()
@@ -62,6 +59,14 @@ fn main() {
     // Main Loop
     clear_screen();
     loop {
+        match sync_map(note_map) {
+            Ok(map) => note_map = map,
+            Err(e) => {
+                println!("Could not save and sync the map due to error{}\nEnding Process...",e);
+                process::exit(1);
+            },
+        }
+
         let menu_choice = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Main Menu")
         .items(MAIN_MENU_CHOICES)
@@ -102,7 +107,15 @@ fn main() {
     }
 }
 
-
+fn sync_map(note_map: HashMap<String, Note>) -> Result<HashMap<String, Note>, MainError>{
+    save_map(note_map);
+    match load_map() {
+        Ok(m) => Ok(m),
+        Err(e) => Err(MainError::DriverError(format!("Error: Could not load note data, check config file and json file.
+                    \nError {e}"
+        ))),
+    }
+}
 
 fn clear_screen() {
     // Restore cursor to the saved position and clear everything below
@@ -219,6 +232,7 @@ fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, Ma
     for note in &reviewed {
         println!("{}{}{}",ASCII["BLUE"], note.name, ASCII["BLUE"])
     }
+    // Save Review
     let save = Select::new()
         .with_prompt("Save Review?")
         .items(YES_NO_CHOICES)
