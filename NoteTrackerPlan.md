@@ -48,6 +48,7 @@ Architecture
         
 
 # ToDo
+- Add config file path with json file
 - Improve map view sort in tracker to sort by 
 	1. alpha
 	2. numerical

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, process, io::{self, Write}};
 
+use chrono::Local;
 // Crates
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 
@@ -186,7 +187,7 @@ fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, Mai
 fn io_add_note(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {            
     // Notes values
     let freq: u16 = 0;
-    let last_accessed = "Today".to_string();    
+    let last_accessed = Local::now().to_string();    
     let name: String = Input::new()
         .with_prompt("Enter the New Notes Name")
         .validate_with(|input: &String| -> Result<(), &str> {

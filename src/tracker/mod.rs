@@ -1,8 +1,9 @@
 use crate::storage::*;
 use std::collections::HashMap;
+use chrono::TimeDelta;
 use thiserror::Error;
 use itertools::Itertools;
-
+use chrono::prelude::*;
 
 use lazy_static::lazy_static;
 // Instantiated static during runtime
@@ -29,6 +30,9 @@ pub enum TrackerError{
 
     #[error("There was an unexpected error: {0}")]
     HashMap(String),
+
+    #[error("There was an DateTime error: {0}")]
+    DateTime(String),
 
     #[error("There was an unexpected error: {0}")]
     Custom(String)
@@ -71,7 +75,7 @@ pub fn update_reviewed_notes(note_map: &mut HashMap<String, Note>, reviewed: Vec
     for note in note_map.values_mut() {
         if reviewed.iter().any(|v| v == note) {
             note.freq += 1;
-            note.last_accessed = "Today".to_string();
+            note.last_accessed = Local::now().to_string();
         }
     }
 }
@@ -93,10 +97,41 @@ pub fn find_least_common_notes(note_map: &HashMap<String, Note>, amount: usize) 
 }
 #[allow(unused)]
 fn find_oldest_notes(note_map: &HashMap<String, Note>) -> Vec<Note> {
-    std::todo!("Write after date implementation")
+    let mut oldest: Vec<&Note> = note_map.values().collect();
+
+    std::todo!();
 }
 
 #[allow(unused)]
-fn calculate_time_difference(date_1: String, date_2: String) {
-    std::todo!("Write after date implementation")
+fn calculate_time_difference(dt1: DateTime<Utc>, dt2: DateTime<Utc>) -> Result<HashMap<String, i64>, TrackerError>{
+    if dt1 < dt2 {
+        return Err(TrackerError::DateTime("Date 1 was smaller than data 2, it should be larger".to_string()));
+    }
+    // Holds years, months, days, hours, minutes, seconds
+    let mut duration_since: HashMap<String, i64> = HashMap::new();
+    let difference: TimeDelta = dt1 - dt2;
+    
+    duration_since.insert("days".to_string(), difference.num_days());
+    duration_since.insert("hours".to_string(), difference.num_hours());
+    duration_since.insert("minutes".to_string(), difference.num_minutes());
+    duration_since.insert("seconds".to_string(), difference.num_seconds());
+
+    Ok(duration_since)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn time_diff() {
+        let dt1: DateTime<Utc> = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap();
+        let dt2: DateTime<Utc> = Utc.with_ymd_and_hms(2000, 6, 25, 15, 30, 45).unwrap();
+
+        let diff = calculate_time_difference(dt1, dt2).unwrap();
+        println!("Days: {}",diff["days"]);
+        println!("Hours: {}",diff["hours"]);
+        println!("Minutes: {}", diff["minutes"]);
+        println!("Seconds: {}", diff["seconds"]);
+    }
 }
