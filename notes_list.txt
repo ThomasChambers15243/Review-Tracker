@@ -1,3 +1,0 @@
-nameOne
-nameTwo
-nameThree
