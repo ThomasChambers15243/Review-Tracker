@@ -50,9 +50,9 @@ Architecture
 # ToDo
 - Add config file path with json file
 - Improve map view sort in tracker to sort by 
-	1. alpha
-	2. numerical
-	3. ascii number
+	1. name
+	2. Freq
+	3. Date
 - Change note view to notes as a formated table	
 # Bug List
 - Loading Map

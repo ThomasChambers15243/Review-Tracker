@@ -1,6 +1,6 @@
 use crate::storage::*;
 use std::collections::HashMap;
-use chrono::TimeDelta;
+use chrono::{ParseError, TimeDelta};
 use thiserror::Error;
 use itertools::Itertools;
 use chrono::prelude::*;
@@ -31,8 +31,11 @@ pub enum TrackerError{
     #[error("There was an unexpected error: {0}")]
     HashMap(String),
 
-    #[error("There was an DateTime error: {0}")]
-    DateTime(String),
+    #[error("There was an DateTime formatting error: {0}")]
+    DateTimeFormatting(String),
+
+    #[error("{0}")]
+    DateTime(#[from] ParseError),
 
     #[error("There was an unexpected error: {0}")]
     Custom(String)
@@ -60,10 +63,11 @@ pub fn save_map(map: HashMap<String, Note>) -> Result<(), TrackerError>{
 // Prints out the hash map of notes in an arbitary order
 pub fn view_map(map: &HashMap<String, Note>) {
     for key in map.keys().sorted(){
-        println!("{}{}{} has been reviewed {}{}{} times. Last reviewed, {}{}{}.",
+        println!("{}{}{} has been reviewed {}{}{} times. Last reviewed, {}{}{},\n{} ago.",
                     ASCII["BOLD"], map[key].name, ASCII["RESET"],
                     ASCII["BOLD"], map[key].freq, ASCII["RESET"],
-                    ASCII["BOLD"], map[key].last_accessed, ASCII["RESET"]
+                    ASCII["BOLD"], format_time_for_output(&map[key].last_accessed), ASCII["RESET"],
+                    format_time_since(&map[key].last_accessed).unwrap()
         );
     }
     println!("\n");
@@ -88,6 +92,7 @@ pub fn manual_note_update(note_map: HashMap<String, Note>, freq: u16, last_acces
 
 // Review Calculations \\
 
+// Find the least common notes, returns amount max
 pub fn find_least_common_notes(note_map: &HashMap<String, Note>, amount: usize) -> Vec<Note> {    
     let mut notes: Vec<&Note> = note_map.values().collect();
 
@@ -95,17 +100,28 @@ pub fn find_least_common_notes(note_map: &HashMap<String, Note>, amount: usize) 
 
     notes.iter().take(amount).cloned().cloned().collect_vec()
 }
-#[allow(unused)]
-fn find_oldest_notes(note_map: &HashMap<String, Note>) -> Vec<Note> {
-    let mut oldest: Vec<&Note> = note_map.values().collect();
 
-    std::todo!();
+// Finds the oldest notes, returns amount max
+pub fn find_oldest_notes(note_map: &HashMap<String, Note>, amount: usize) -> Vec<Note> {
+    let mut oldest: Vec<&Note> = note_map.values().collect();
+    
+    oldest.sort_by(|a, b| {
+        let a_time = DateTime::parse_from_str(
+            &a.last_accessed,
+            "%Y-%m-%d %H:%M:%S%.9f %z").unwrap();
+        let b_time = DateTime::parse_from_str(
+            &b.last_accessed,
+            "%Y-%m-%d %H:%M:%S%.9f %z").unwrap();
+        a_time.cmp(&b_time)
+    });
+
+    oldest.iter().take(amount).cloned().cloned().collect_vec()
 }
 
-#[allow(unused)]
+// Calculate the time differenc between two DateTime<Utc> dates, dt1 must be larger than dt2 else error
 fn calculate_time_difference(dt1: DateTime<Utc>, dt2: DateTime<Utc>) -> Result<HashMap<String, i64>, TrackerError>{
-    if dt1 < dt2 {
-        return Err(TrackerError::DateTime("Date 1 was smaller than data 2, it should be larger".to_string()));
+    if dt1 <= dt2 {
+        return Err(TrackerError::DateTimeFormatting("Date 1 was smaller than data 2, it should be larger".to_string()));
     }
     // Holds years, months, days, hours, minutes, seconds
     let mut duration_since: HashMap<String, i64> = HashMap::new();
@@ -119,19 +135,65 @@ fn calculate_time_difference(dt1: DateTime<Utc>, dt2: DateTime<Utc>) -> Result<H
     Ok(duration_since)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn time_diff() {
-        let dt1: DateTime<Utc> = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap();
-        let dt2: DateTime<Utc> = Utc.with_ymd_and_hms(2000, 6, 25, 15, 30, 45).unwrap();
 
-        let diff = calculate_time_difference(dt1, dt2).unwrap();
-        println!("Days: {}",diff["days"]);
-        println!("Hours: {}",diff["hours"]);
-        println!("Minutes: {}", diff["minutes"]);
-        println!("Seconds: {}", diff["seconds"]);
+pub fn format_time_for_output(time: &str) -> String {    
+    let utc_time = DateTime::parse_from_str(
+        time,
+        "%Y-%m-%d %H:%M:%S%.9f %z").unwrap();
+    
+    format!("{}", utc_time.format("%Y-%m-%d %H:%M:%S"))
+}
+
+pub fn format_time_since(time: &str) -> Result<String, TrackerError> {
+    
+    let date: DateTime<Utc> = DateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S%.9f %z")?.into();
+    
+    match calculate_time_difference(Utc::now(), date) {
+        Ok(mut map) => {
+            // Filter out times with no values
+            // and sort order from days to seconds
+            let mut diff: Vec<(&String, &mut i64)> = map.iter_mut()
+                .filter(
+                    |(_,&mut v)| 
+                    v != 0
+                )
+                .collect_vec()
+                .into_iter().sorted_by(
+                    |a, b| 
+                    Ord::cmp(a.1,b.1)
+                )
+                .collect_vec();
+
+            // Reduce added time so its an true representation of how long
+            let mut seen_time = 0;
+            for (date, dur) in  diff.iter_mut() {
+                match date.as_ref() {
+                    "days" => seen_time = **dur * 24,
+                    "hours" => {
+                        **dur -= seen_time;
+                        seen_time *= 60;
+                        seen_time += **dur * 60;
+                    },
+                    "minutes" => {
+                        **dur -= seen_time;
+                        seen_time *= 60;
+                        seen_time += **dur * 60;
+                    }
+                    "seconds" => {
+                        **dur -= seen_time;
+                    }
+                    _ => return Err(TrackerError::DateTimeFormatting("Unknown Time name in list".to_string())),
+                }
+            }
+            // Convert vector to single string
+            let mut time_string = String::new();
+            for (date, dur) in diff.iter() {
+                time_string.push_str(format!("{date}:{dur}, ").as_str());
+            }
+            Ok(time_string)
+        },
+        Err(e) => Err(TrackerError::DateTimeFormatting(format!("{e}"))),
     }
 }
+

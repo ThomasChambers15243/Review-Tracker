@@ -7,9 +7,10 @@ use dialoguer::{theme::ColorfulTheme, Input, Select};
 // Mods
 pub mod storage;
 pub mod tracker;
-use storage::{get_note_names_from_file, Note};
+use itertools::Itertools;
+use storage::*;
 use thiserror::Error;
-use tracker::{find_least_common_notes, load_map, save_map, update_reviewed_notes, view_map, ASCII};
+use tracker::*;
 
 // Choice menus
 const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
@@ -89,7 +90,7 @@ fn main() {
             "View Notes" => {
                 // Handle case where map is empty
                 match io_handle_empty_map(&note_map) {
-                    Ok(_) => view_map(&note_map),
+                    Ok(_) => io_view_map(&note_map),
                     Err(message) => println!("{}", message),
                 }
             },
@@ -146,6 +147,22 @@ where
         },                    
         Err(e) => println!("{} {} {}",ASCII["RED"], e, ASCII["RESET"]),
     };
+}
+
+fn io_view_map(note_map: &HashMap<String, Note>) {
+    println!("{}...Notes...{}", ASCII["BOLD"], ASCII["RESET"]);
+    for key in note_map.keys().sorted(){
+        println!("Note {}{}{}\n 
+                    Reviewed: {}{} times{}.
+                    Last reviewed: {}{}{},
+                    Time Since: {}",
+                    ASCII["BOLD"], note_map[key].name, ASCII["RESET"],
+                    ASCII["BOLD"], note_map[key].freq, ASCII["RESET"],
+                    ASCII["BOLD"], format_time_for_output(&note_map[key].last_accessed), ASCII["RESET"],
+                    format_time_since(&note_map[key].last_accessed).unwrap()
+        );
+    }
+    //println!("\n");
 }
 
 fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
@@ -265,14 +282,30 @@ fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, Ma
     // Handle case where map is empty
     io_handle_empty_map(note_map)?;
 
-    // Get list of Notes to review
-    let reviewed: Vec<Note> = find_least_common_notes(note_map, 3);
-    // Formats and prints Notes to Review
-    println!("{}Notes to Review:{}", ASCII["BOLD"], ASCII["RESET"]);
+    // Get list of Notes to review, combining the oldest and least common
+    let mut reviewed: Vec<Note> = find_least_common_notes(note_map, 3);
+    let mut oldest: Vec<Note> = find_oldest_notes(note_map, 2);
+    reviewed.append(&mut oldest);
+
+    // Formats and prints Notes to Review \\ 
+    
+    // Least common
+    println!("{}...Notes to Review...{}\n", ASCII["BOLD"], ASCII["RESET"]);
+    println!("{}Least Reviewed:{}", ASCII["BOLD"], ASCII["RESET"]);
     for note in &reviewed {        
         println!("{}{}:{} Reviewed {}{}{} times, last at {}{}",
         ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
-        note.freq, ASCII["RESET"], ASCII["BOLD"], note.last_accessed
+        note.freq, ASCII["RESET"], ASCII["BOLD"], format_time_for_output(&note.last_accessed)
+        );
+    }
+
+    // Oldest
+    println!("{}\nOldest Since Last Review:{}", ASCII["BOLD"], ASCII["RESET"]);
+    for note in &oldest {        
+        println!("{}{}:{} Last reviewed at: {}{}{} times, Last at {}{},\n {} ago",
+        ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
+        note.freq, ASCII["RESET"], ASCII["BOLD"], format_time_for_output(&note.last_accessed),
+        format_time_since(&note.last_accessed).unwrap()
         );
     }
     // Create gap between next select
