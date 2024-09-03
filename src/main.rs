@@ -1,6 +1,6 @@
 use std::{collections::HashMap, process, io::{self, Write}};
 
-use chrono::Local;
+use chrono::{Local, Utc};
 // Crates
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 
@@ -168,35 +168,59 @@ bold_wrap!(format_time_since(&note_map[key].last_accessed).unwrap())
 }
 
 fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
-    // Gets file path
-    let file_path: String = Input::new()
-        .with_prompt("Enter the file path")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.chars().count() < 4 {
-                return Err("File Path must end with .txt");
-            }    
-            // Reverses string a chars, takes the first 4, then reverses it again    
-            let last_four: String = input.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();            
-            if last_four != ".txt" {
-                Err("File Path must end with .txt")
-            } else {
-                Ok(())
-            }
-        })
+
+    let choices = ["Markdown directory", "Markdown file (.md)", "Text file (.txt)"];
+    let markdown_choices = ["H1 (#)", "H2 (##)", "H3 (###)", "H4 (####)", "H5 (#####)", "H6 (######)"];
+
+    let choice = Select::new()
+        .with_prompt("Select where you would like to generate new notes from")
+        .items(&choices)
+        .default(0)
         .interact()
         .unwrap();
 
-    // Generate file path
-    match get_note_names_from_file(file_path.as_str()) {
-        Err(e) => Err(MainError::DriverError(format!(
-            "Could not get names, due to error: {e}"))),
-        Ok(note_names) => {
-            for name in note_names {
-                note_map.insert(name.clone(), Note::new(name, 0, "today".to_string()));
-            }            
-            Ok(format!("New Notes successfully added from file {}", bold_wrap!(file_path)))
-        }
+    match choices[choice] {
+        "Markdown directory" => {
+            todo!("")
+        },
+        // Make down and text use the same code but with
+        "Markdown file (.md)" => {
+            // Gets file path
+            let file_path = io_get_file_path(".md");
+            // Gets the min_hashes for markdown parsing
+            let header_length = Select::new()
+            .with_prompt("Whats the smallest header type you would like to include")
+            .items(&markdown_choices)
+            .default(0)
+            .interact()
+            .unwrap();
+            // Gets header names
+            match get_note_names_from_markdown(file_path.as_str(), header_length+1) {
+                Ok(note_names) => {
+                    io_create_new_notes_from_vec(note_names, note_map);      
+                    Ok(format!("New Notes successfully added from file {}", bold_wrap!(file_path)))
+                },
+                Err(e) => Err(MainError::DriverError(format!(
+                    "Could not get names, due to error: {e}"))),
+            }
+        },
+        "Text file (.txt)" => {
+            // Gets file path
+            let file_path = io_get_file_path(".txt");
+            // Gets note names
+            match get_note_names_from_file(file_path.as_str()) {
+                Ok(note_names) => {
+                    io_create_new_notes_from_vec(note_names, note_map);      
+                    Ok(format!("New Notes successfully added from file {}", bold_wrap!(file_path)))
+                },
+                Err(e) => Err(MainError::DriverError(format!(
+                    "Could not get names, due to error: {e}"))),
+            }
+        },
+        _ => Ok("What option was this???".to_string()),
     }
+
+
 }
 
 
@@ -319,4 +343,33 @@ fn io_handle_empty_map(note_map: &HashMap<String, Note>) -> Result<String, MainE
                 ASCII["GREEN"], bold_wrap!("Add Note")).to_string())),
         false => Ok("".to_string()),
     }
+}
+
+
+fn io_get_file_path(file_type: &str) -> String{
+    // Gets file path
+    Input::new()
+    .with_prompt("Enter the file path")
+    .validate_with(|input: &String| -> Result<(), &str> {
+        if input.chars().count() < file_type.len() {
+            println!("File Path must end with {}", file_type);
+            return Err("Try again");
+        }    
+        // Reverses string a chars, takes the first 4, then reverses it again    
+        let last_four: String = input.chars().rev().take(file_type.len()).collect::<Vec<_>>().into_iter().rev().collect();            
+        if last_four != file_type {
+            println!("File Path must end with {}", file_type);
+            Err("")
+        } else {
+            Ok(())
+        }
+    })
+    .interact()
+    .unwrap()
+}
+
+fn io_create_new_notes_from_vec(note_names: Vec<String>, note_map: &mut HashMap<String, Note>) {    
+    for name in note_names {
+        note_map.insert(name.clone(), Note::new(name, 0, Local::now().to_string()));
+    }            
 }

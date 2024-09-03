@@ -7,6 +7,7 @@ use std::{
     path::Path,
     io::{self, BufRead, Write},
 };
+use itertools::Itertools;
 // JSON
 use serde::{Deserialize, Serialize};
 // Errors
@@ -135,8 +136,70 @@ pub fn get_note_names_from_file(path: &str) -> Result<Vec<String>, StorageError>
     Ok(names)
 }
 
+pub fn get_note_names_from_markdown(path: &str, min_hashes: usize) -> Result<Vec<String>, StorageError> {
+    if !Path::exists(Path::new(path)) {
+        return Err(StorageError::File("Could not find the file".to_string()));
+    }
+
+    let mut names: Vec<String> = vec![];
+    if let Ok(lines) = read_lines(path) {
+        for line in lines.flatten() {
+            if let Some(name) = parse_markdown_headers_from_line(line.trim(), min_hashes) {
+                names.push(name);
+            }
+        }
+    };
+
+    Ok(names)
+}
+
+// Gets the title from the line if its <= to min in importance
+fn parse_markdown_headers_from_line(line: &str, min_hashes: usize) -> Option<String> {
+    let mut hashes = 0;
+
+    let mut char_indicies = line.char_indices();
+    while let Some((index, char)) = char_indicies.next() {
+        if ![' ','#'].contains(&char) {
+            return None;
+        } else {
+            if char == '#'{
+                hashes += 1;
+                while let Some((_, new_char)) = char_indicies.next() {
+                    if new_char == '#' {
+                        hashes +=1;
+                    } else if new_char != ' ' || hashes > min_hashes{
+                        return None;
+                    } else {
+                        break;
+                    }
+                }
+                return Some(char_indicies.map(|(_,c)| c).collect_vec().into_iter().join(""));
+
+            }
+        }
+    }
+
+    None
+}
+
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn markdown() {        
+        match get_note_names_from_markdown("example0.md", 6) {
+            Ok(v) => {
+                for note in  v {
+                    println!("{}", note);
+                }
+            },
+            Err(e) => println!("Was error, {}", e),
+        }
+    }
 }

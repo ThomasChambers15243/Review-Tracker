@@ -56,11 +56,11 @@ Architecture
 - [ ] OpenAI intergration to generate quetions based of notes
 
 # ToDo
+- Sort through markdown files and extract note titiles as headers
 - Improve map view sort in tracker to sort by 
 	1. name
 	2. Freq
 	3. Date
-- Improve review notes view
 - Documentation
 - Critical testing
 # Bug List

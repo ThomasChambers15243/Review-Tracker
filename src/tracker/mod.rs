@@ -23,12 +23,6 @@ lazy_static! {
     };
 }
 
-// Wraps the expression in bold, resetting the ascii afterwards.
-// macro_rules! bold_wrap {
-//     ($a:expr) => {
-//         format!("\x1B[1m{}\x1B[0m", $a)
-//     };
-// }
 
 #[macro_export]
 macro_rules! bold_wrap {
