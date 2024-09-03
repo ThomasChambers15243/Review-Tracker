@@ -30,6 +30,7 @@ lazy_static! {
 //     };
 // }
 
+#[macro_export]
 macro_rules! bold_wrap {
     ($single:expr) => {
         format!("\x1B[1m{}\x1B[0m", $single)
@@ -45,6 +46,8 @@ macro_rules! bold_wrap {
         }
     };
 }
+
+
 
 #[derive(Debug, Error)]
 pub enum TrackerError{

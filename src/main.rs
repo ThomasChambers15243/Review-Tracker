@@ -12,6 +12,8 @@ use storage::*;
 use thiserror::Error;
 use tracker::*;
 
+
+
 // Choice menus
 const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
 
@@ -150,16 +152,16 @@ where
 }
 
 fn io_view_map(note_map: &HashMap<String, Note>) {
-    println!("{}...Notes...{}", ASCII["BOLD"], ASCII["RESET"]);
+    println!("{}",bold_wrap!("...Notes..."));
     for key in note_map.keys().sorted(){
-        println!("Note {}{}{}\n 
-                    Reviewed: {}{} times{}.
-                    Last reviewed: {}{}{},
-                    Time Since: {}",
-                    ASCII["BOLD"], note_map[key].name, ASCII["RESET"],
-                    ASCII["BOLD"], note_map[key].freq, ASCII["RESET"],
-                    ASCII["BOLD"], format_time_for_output(&note_map[key].last_accessed), ASCII["RESET"],
-                    format_time_since(&note_map[key].last_accessed).unwrap()
+        println!("Note {} 
+\tReviewed: {} times.
+\tLast reviewed: {},
+\tTime Since: {}",
+bold_wrap!(note_map[key].name),
+bold_wrap!(note_map[key].freq),
+bold_wrap!(format_time_for_output(&note_map[key].last_accessed)),
+bold_wrap!(format_time_since(&note_map[key].last_accessed).unwrap())
         );
     }
     //println!("\n");
@@ -192,7 +194,7 @@ fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, Mai
             for name in note_names {
                 note_map.insert(name.clone(), Note::new(name, 0, "today".to_string()));
             }            
-            Ok(format!("New Notes successfully added from file {}{}{}", ASCII["BOLD"], file_path , ASCII["RESET"]))
+            Ok(format!("New Notes successfully added from file {}", bold_wrap!(file_path)))
         }
     }
 }
@@ -313,8 +315,8 @@ fn io_handle_empty_map(note_map: &HashMap<String, Note>) -> Result<String, MainE
     // Check map is empty
     match note_map.is_empty() {
         true => Err(MainError::DriverError(format!(
-                "{}No notes to review\nTry adding some notes with {}Add Note{}",
-                ASCII["GREEN"], ASCII["BOLD"], ASCII["RESET"]).to_string())),
+                "{}No notes to review\nTry adding some notes with {}",
+                ASCII["GREEN"], bold_wrap!("Add Note")).to_string())),
         false => Ok("".to_string()),
     }
 }
