@@ -92,20 +92,16 @@ pub fn manual_note_update(note_map: HashMap<String, Note>, freq: u16, last_acces
 
 // Review Calculations \\
 
-// Find the least common notes, returns amount max
-pub fn find_least_common_notes(note_map: &HashMap<String, Note>, amount: usize) -> Vec<Note> {    
+pub fn get_notes_to_review(note_map: &HashMap<String, Note>) -> (Vec<Note>, Vec<Note>) {
     let mut notes: Vec<&Note> = note_map.values().collect();
 
+    // Sort by freq
     notes.sort_by(|a, b| a.freq.cmp(&b.freq));
-
-    notes.iter().take(amount).cloned().cloned().collect_vec()
-}
-
-// Finds the oldest notes, returns amount max
-pub fn find_oldest_notes(note_map: &HashMap<String, Note>, amount: usize) -> Vec<Note> {
-    let mut oldest: Vec<&Note> = note_map.values().collect();
+    // Gets 3 most uncommon 
+    let uncommon = notes.iter().take(3).cloned().cloned().collect_vec();    
     
-    oldest.sort_by(|a, b| {
+    // Sort by date
+    notes.sort_by(|a, b| {
         let a_time = DateTime::parse_from_str(
             &a.last_accessed,
             "%Y-%m-%d %H:%M:%S%.9f %z").unwrap();
@@ -114,9 +110,41 @@ pub fn find_oldest_notes(note_map: &HashMap<String, Note>, amount: usize) -> Vec
             "%Y-%m-%d %H:%M:%S%.9f %z").unwrap();
         a_time.cmp(&b_time)
     });
+    // Gets 2 oldest that arn't already in the most uncommon vec
+    let olderst = notes.iter()
+        .filter(|n| !uncommon.contains(n))
+        .take(2).cloned().cloned().collect_vec();
 
-    oldest.iter().take(amount).cloned().cloned().collect_vec()
+    (uncommon, olderst)
 }
+
+pub fn format_review(uncommon: &Vec<Note>, oldest: &Vec<Note>) {
+    // Title
+    println!("{}...Notes to Review...{}\n", ASCII["BOLD"], ASCII["RESET"]);
+    
+    // Least common    
+    println!("{}Least Reviewed:{}", ASCII["BOLD"], ASCII["RESET"]);
+    for note in uncommon {        
+        println!("{}{}:{} Reviewed {}{}{} times, last at {}{}",
+        ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
+        note.freq, ASCII["RESET"], ASCII["BOLD"], format_time_for_output(&note.last_accessed)
+        );
+    }
+
+    // Oldest
+    println!("{}\nOldest Since Last Review:{}", ASCII["BOLD"], ASCII["RESET"]);
+    for note in oldest {        
+        println!("{}{}:{} Last reviewed at: {}{}{} times, Last at {}{},\n {} ago",
+        ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
+        note.freq, ASCII["RESET"], ASCII["BOLD"], format_time_for_output(&note.last_accessed),
+        format_time_since(&note.last_accessed).unwrap()
+        );
+    }
+
+    // Create gap between next select
+    println!("\n");
+}
+
 
 // Calculate the time differenc between two DateTime<Utc> dates, dt1 must be larger than dt2 else error
 fn calculate_time_difference(dt1: DateTime<Utc>, dt2: DateTime<Utc>) -> Result<HashMap<String, i64>, TrackerError>{

@@ -282,46 +282,26 @@ fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, Ma
     // Handle case where map is empty
     io_handle_empty_map(note_map)?;
 
-    // Get list of Notes to review, combining the oldest and least common
-    let mut reviewed: Vec<Note> = find_least_common_notes(note_map, 3);
-    let mut oldest: Vec<Note> = find_oldest_notes(note_map, 2);
-    reviewed.append(&mut oldest);
+    let (mut uncommon, mut oldest) = get_notes_to_review(note_map);
 
     // Formats and prints Notes to Review \\ 
+
+    format_review(&uncommon, &oldest);
+
     
-    // Least common
-    println!("{}...Notes to Review...{}\n", ASCII["BOLD"], ASCII["RESET"]);
-    println!("{}Least Reviewed:{}", ASCII["BOLD"], ASCII["RESET"]);
-    for note in &reviewed {        
-        println!("{}{}:{} Reviewed {}{}{} times, last at {}{}",
-        ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
-        note.freq, ASCII["RESET"], ASCII["BOLD"], format_time_for_output(&note.last_accessed)
-        );
-    }
-
-    // Oldest
-    println!("{}\nOldest Since Last Review:{}", ASCII["BOLD"], ASCII["RESET"]);
-    for note in &oldest {        
-        println!("{}{}:{} Last reviewed at: {}{}{} times, Last at {}{},\n {} ago",
-        ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
-        note.freq, ASCII["RESET"], ASCII["BOLD"], format_time_for_output(&note.last_accessed),
-        format_time_since(&note.last_accessed).unwrap()
-        );
-    }
-    // Create gap between next select
-    println!("\n");
-
     // Save Review
     let save = Select::new()
-        .with_prompt("Save Review?")
-        .items(YES_NO_CHOICES)
-        .default(0)
-        .interact()
-        .unwrap();
+    .with_prompt("Save Review?")
+    .items(YES_NO_CHOICES)
+    .default(0)
+    .interact()
+    .unwrap();
 
-    match YES_NO_CHOICES[save] {
-        "YES" => {
-            update_reviewed_notes(note_map, reviewed);
+match YES_NO_CHOICES[save] {
+    "YES" => {
+            // Join together two sets of notes and update them in the json file
+            uncommon.append(&mut oldest);
+            update_reviewed_notes(note_map, uncommon);
             Ok("Notes Saved".to_string())
         },
         _ => Err(MainError::DriverError("Notes were not saved".to_string()))

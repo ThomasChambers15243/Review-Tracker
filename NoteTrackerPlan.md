@@ -55,6 +55,3 @@ Architecture
 	3. Date
 - Change note view to notes as a formated table	
 # Bug List
-- Loading Map
-	- Errors when json is empty, causing cascading errors upwards.
-    
