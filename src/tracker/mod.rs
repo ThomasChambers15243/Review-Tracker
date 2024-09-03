@@ -23,6 +23,29 @@ lazy_static! {
     };
 }
 
+// Wraps the expression in bold, resetting the ascii afterwards.
+// macro_rules! bold_wrap {
+//     ($a:expr) => {
+//         format!("\x1B[1m{}\x1B[0m", $a)
+//     };
+// }
+
+macro_rules! bold_wrap {
+    ($single:expr) => {
+        format!("\x1B[1m{}\x1B[0m", $single)
+    };
+    ($first:expr, $($rest:expr),+) => {
+        {
+            let mut string = String::from($first);
+            $(
+                string.push_str(", ");
+                string.push_str($rest.to_string().as_str());
+            )+
+            format!("\x1B[1m{}\x1B[0m", string)
+        }
+    };
+}
+
 #[derive(Debug, Error)]
 pub enum TrackerError{
     #[error("{0}")]
@@ -118,26 +141,30 @@ pub fn get_notes_to_review(note_map: &HashMap<String, Note>) -> (Vec<Note>, Vec<
     (uncommon, olderst)
 }
 
+
 pub fn format_review(uncommon: &Vec<Note>, oldest: &Vec<Note>) {
     // Title
-    println!("{}...Notes to Review...{}\n", ASCII["BOLD"], ASCII["RESET"]);
+    println!("{}\n",bold_wrap!("...Notes to Review..."));
     
     // Least common    
-    println!("{}Least Reviewed:{}", ASCII["BOLD"], ASCII["RESET"]);
-    for note in uncommon {        
-        println!("{}{}:{} Reviewed {}{}{} times, last at {}{}",
-        ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
-        note.freq, ASCII["RESET"], ASCII["BOLD"], format_time_for_output(&note.last_accessed)
+    println!("{}", bold_wrap!("Least Reviewed:"));
+    for note in uncommon {     
+        println!("Note: {} - Reviewed {} times, last at {}",
+            bold_wrap!(note.name),
+            bold_wrap!(note.freq),
+            bold_wrap!(format_time_for_output(&note.last_accessed))
         );
     }
 
     // Oldest
-    println!("{}\nOldest Since Last Review:{}", ASCII["BOLD"], ASCII["RESET"]);
+    println!("\n{}",bold_wrap!("Oldest Since Last Review:"));
+
     for note in oldest {        
-        println!("{}{}:{} Last reviewed at: {}{}{} times, Last at {}{},\n {} ago",
-        ASCII["BOLD"], note.name, ASCII["RESET"], ASCII["BOLD"],
-        note.freq, ASCII["RESET"], ASCII["BOLD"], format_time_for_output(&note.last_accessed),
-        format_time_since(&note.last_accessed).unwrap()
+        println!("Note: {} - Last reviewed at: {} times, Last at {}\n\tTime since review: {}",
+            bold_wrap!(note.name),
+            bold_wrap!(note.freq),
+            bold_wrap!(format_time_for_output(&note.last_accessed)),
+            bold_wrap!(format_time_since(&note.last_accessed).unwrap())
         );
     }
 
@@ -217,11 +244,10 @@ pub fn format_time_since(time: &str) -> Result<String, TrackerError> {
             // Convert vector to single string
             let mut time_string = String::new();
             for (date, dur) in diff.iter() {
-                time_string.push_str(format!("{date}:{dur}, ").as_str());
+                time_string.push_str(format!("{date}: {dur}, ").as_str());
             }
             Ok(time_string)
         },
         Err(e) => Err(TrackerError::DateTimeFormatting(format!("{e}"))),
     }
 }
-

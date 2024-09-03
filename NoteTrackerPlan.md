@@ -45,13 +45,23 @@ Architecture
         - Review generation
         - Review updatiung
         - reviews mangement
-        
+---        
+# Release Track
+- [ ] Write read me
+- [x] Can store notes, handle, view and review notes
+- [x] Generate notes from .txt file of names per line
+- [ ] Get headers from dir containing .md files
+### Future track
+- [ ] Markdown Note storage (obsidian wrapper?)
+- [ ] OpenAI intergration to generate quetions based of notes
 
 # ToDo
-- Add config file path with json file
 - Improve map view sort in tracker to sort by 
 	1. name
 	2. Freq
 	3. Date
-- Change note view to notes as a formated table	
+- Improve review notes view
+- Documentation
+- Critical testing
 # Bug List
+- Cannot exit note generator unless valid file is entered
