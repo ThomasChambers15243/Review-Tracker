@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 // Errors
 use thiserror::Error;
 
+use crate::bold_wrap;
+
 
 #[derive(Debug, Error)]
 pub enum StorageError {
@@ -129,7 +131,9 @@ pub fn get_note_names_from_file(path: &str) -> Result<Vec<String>, StorageError>
     let mut names: Vec<String> = vec![];
     if let Ok(lines) = read_lines(path) {
         for line in lines.flatten() {
-            names.push(line.trim().to_string());
+            if !line.trim().is_empty() {
+                names.push(line.trim().to_string());
+            }
         }
     };
 
@@ -145,6 +149,7 @@ pub fn get_note_names_from_markdown(path: &str, min_hashes: usize) -> Result<Vec
     if let Ok(lines) = read_lines(path) {
         for line in lines.flatten() {
             if let Some(name) = parse_markdown_headers_from_line(line.trim(), min_hashes) {
+                println!("File Note name: {}", bold_wrap!(name));
                 names.push(name);
             }
         }
@@ -157,12 +162,10 @@ pub fn get_note_names_from_markdown(path: &str, min_hashes: usize) -> Result<Vec
 fn parse_markdown_headers_from_line(line: &str, min_hashes: usize) -> Option<String> {
     let mut hashes = 0;    
     let mut char_indicies = line.char_indices();
-    while let Some((index, char)) = char_indicies.next() {
+    while let Some((_, char)) = char_indicies.next() {
         if ![' ','#'].contains(&char) {
             return None;
         } else {
-            // REMOVE
-            println!("{}",line);
             if char == '#'{
                 hashes += 1;
                 while let Some((_, new_char)) = char_indicies.next() {

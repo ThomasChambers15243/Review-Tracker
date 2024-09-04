@@ -50,14 +50,17 @@ Architecture
 - [ ] Write read me
 - [x] Can store notes, handle, view and review notes
 - [x] Generate notes from .txt file of names per line
+- [X] Get headers from dir containing .md files
+- [ ] Can mass delete from markdown and txt files
 - [ ] Can edit note names
-- [ ] Get headers from dir containing .md files
 ### Future track
+- [ ] Save profiles for seperate note collections
 - [ ] Markdown Note storage (obsidian wrapper?)
 - [ ] OpenAI intergration to generate quetions based of notes
 
 # ToDo
-- Have option for pre-fix to header note names when scraping from markdown
+- Can delete notes using files
+- Can edit note names
 
 - Improve map view sort in tracker to sort by 
 	1. name

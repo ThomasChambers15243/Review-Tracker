@@ -41,6 +41,40 @@ macro_rules! bold_wrap {
     };
 }
 
+#[macro_export]
+macro_rules! green_wrap {
+    ($single:expr) => {
+        format!("\x1B[32m{}\x1B[0m", $single)
+    };
+    ($first:expr, $($rest:expr),+) => {
+        {
+            let mut string = String::from($first);
+            $(
+                string.push_str(", ");
+                string.push_str($rest.to_string().as_str());
+            )+
+            format!("\x1B[32m{}\x1B[0m", string)
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! red_wrap {
+    ($single:expr) => {
+        format!("\x1B[31m{}\x1B[0m", $single)
+    };
+    ($first:expr, $($rest:expr),+) => {
+        {
+            let mut string = String::from($first);
+            $(
+                string.push_str(", ");
+                string.push_str($rest.to_string().as_str());
+            )+
+            format!("\x1B[31m{}\x1B[0m", string)
+        }
+    };
+}
+
 
 
 #[derive(Debug, Error)]

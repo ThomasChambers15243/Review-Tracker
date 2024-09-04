@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ffi::OsStr, io::{self, Write}, path::Prefix, process};
+use std::{collections::HashMap, error, ffi::OsStr, io::{self, Write}, path::Prefix, process};
 
 use chrono::{Local, Utc};
 // Crates
@@ -17,12 +17,14 @@ use walkdir::WalkDir;
 // Choice menus
 const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
 
-const MAIN_MENU_CHOICES: &'static [&str;6] = &[
+const MAIN_MENU_CHOICES: &'static [&str;8] = &[
     "Add Note",
-    "Remove Note",
     "View Notes",
+    "Edit Notes",
+    "Remove Note",
     "Generate Review",
     "Generate Notes",
+    "Remove Notes Using File",
     "Quit"
     ];
 
@@ -32,7 +34,13 @@ static mut CLEAR: bool = false;
 #[derive(Error, Debug)]
 enum MainError {
     #[error("{0}")]
-    DriverError(String)
+    DriverError(String),
+
+    #[error("{0}")]
+    TrackerError(#[from] TrackerError),
+
+    #[error("{0}")]
+    StorageError(#[from] StorageError)
 }
     
 fn main() {
@@ -99,13 +107,16 @@ fn main() {
             "Generate Review" => {
                 handle_map_operation(&mut note_map, |m| io_generate_review(m));
             },
+            "Generate Notes" => {
+                handle_map_operation(&mut note_map, |m| io_generate_notes(m));
+            },
+            "Remove Notes Using File" => {
+                handle_map_operation(&mut note_map, |m| io_remove_notes_wth_file(m));
+            },
             "Quit" => {            
                 clear_screen(); // Clear screen and reset cursor before exiting
                 process::exit(0);
             },
-            "Generate Notes" => {
-                handle_map_operation(&mut note_map, |m| io_generate_notes(m));
-            }
             _ => {
                 println!("Something went wrong, ending process");            
                 clear_screen();
@@ -254,12 +265,7 @@ fn io_add_note(note_map: &mut HashMap<String, Note>) -> Result<String, MainError
 
     // Gives user an out incase they're filled with a deep regret over
     // their note choice
-    let sure = Select::new()
-        .with_prompt("Add Note?")
-        .items(YES_NO_CHOICES)
-        .default(0)
-        .interact()
-        .unwrap();
+    let sure = select_wrapper("Add Note?", YES_NO_CHOICES);
 
     match YES_NO_CHOICES[sure] {
         "YES" => {
@@ -282,36 +288,70 @@ fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, MainEr
 
     // Gives user an out incase they're filled with a deep regret over
     // their note choice
-    let sure = Select::new()
-        .with_prompt("Remove Note?")
-        .items(YES_NO_CHOICES)
-        .default(0)
-        .interact()
-        .unwrap();
+    let sure = select_wrapper("Remove Note?", YES_NO_CHOICES);
 
     // Gives user an out incase they're filled with a deep regret over
     // their note choice
     match YES_NO_CHOICES[sure] {
         "YES" => {
-            if let Some(note_name) = note_map.keys()
-                .find(|key| key.to_lowercase() == name.to_lowercase()).cloned()
-            {
-                if let Some(note) = note_map.remove(&note_name) {
-                    return Ok(format!(
-                        "{} was removed with values:\nFreq: {}\nLast Accessed: {}",
-                        note.name, note.freq, note.last_accessed
-                    ));
-                } else {
-                    return Err(MainError::DriverError("Could not find note to remove".to_string()));
-                }
-            }
-            Err(MainError::DriverError("Note not found".to_string()))
+            io_del_note(name, note_map)
         },
         _ => Err(MainError::DriverError("No Note was removed".to_string())),
     }
     
 }
 
+fn io_remove_notes_wth_file(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
+
+    let mut file_path = String::new();
+    let mut names: Vec<String> = Vec::new();
+    let file_types = ["Markdown (.md)", "Text (.txt)"];
+    let choice = select_wrapper("Select file type", &file_types);
+
+    match file_types[choice] {
+        "Markdown (.md)" => {
+            file_path = io_get_file_path(".md");
+            // Gets the min_hashes for markdown parsing
+            let markdown_choices = ["H1 (#)", "H2 (##)", "H3 (###)", "H4 (####)", "H5 (#####)", "H6 (######)"];
+            let header_length = select_wrapper(
+                format!("Whats the smallest header type you would like to include for file:{}", file_path).as_str(),
+                        &markdown_choices
+            );            
+            names = get_note_names_from_markdown(file_path.as_str(), header_length)?;
+            let prefix = io_get_prefix();
+            
+            for name in names {
+                let mut note_name = prefix.clone();
+                note_name.push_str(name.as_str());
+                match io_del_note(note_name, note_map) {
+                    Ok(msg) => println!("{}", green_wrap!(msg)),
+                    Err(msg) => println!("{}", red_wrap!(msg)),
+                }
+            }
+            Ok("Any notes found were removed...".to_string())
+        },
+        "Text (.txt)" => {
+            file_path = io_get_file_path(".txt");
+
+            match get_note_names_from_file(file_path.as_str()) {
+                Ok(names) => {
+                    let prefix = io_get_prefix();
+                    for name in names {
+                        let mut note_name = prefix.clone();
+                        note_name.push_str(name.as_str());
+                        match io_del_note(note_name, note_map) {
+                            Ok(msg) => println!("{}", green_wrap!(msg)),
+                            Err(msg) => println!("{}", red_wrap!(msg)),
+                        }
+                    }
+                    Ok("Any notes found were removed...".to_string())
+                },
+                Err(e) => Err(e.into()),
+            }
+        },
+        _ => Ok("This errr...his wasn't an option? How did you...oh..OH MY GOD NO PUT IT DOWN!! SOMEONE HELP, WHY ME NO PLZ PFHDSUDIK...".to_string())
+    }
+}
 
 fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
     // Handle case where map is empty
@@ -323,7 +363,6 @@ fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, Ma
 
     format_review(&uncommon, &oldest);
 
-    
     // Save Review
     let save = Select::new()
     .with_prompt("Save Review?")
@@ -388,12 +427,10 @@ fn io_create_new_notes_from_vec(prefix: String, note_names: Vec<String>, note_ma
 fn io_get_notes_from_markdown(file_path: String, note_map: &mut HashMap<String, Note>) -> Result<String, MainError>{
     let markdown_choices = ["H1 (#)", "H2 (##)", "H3 (###)", "H4 (####)", "H5 (#####)", "H6 (######)"];
     // Gets the min_hashes for markdown parsing
-    let header_length = Select::new()
-    .with_prompt(format!("Whats the smallest header type you would like to include for file:{}", file_path))
-    .items(&markdown_choices)
-    .default(0)
-    .interact()
-    .unwrap();
+    let header_length = select_wrapper(
+        format!("Whats the smallest header type you would like to include for file:{}", file_path).as_str(),
+                &markdown_choices
+    );
     // Gets header names
     match get_note_names_from_markdown(file_path.as_str(), header_length+1) {
         Ok(note_names) => {
@@ -423,4 +460,29 @@ fn io_get_prefix() -> String {
         },
         _ => "".to_string()
     }
+}
+
+fn select_wrapper(prompt: &str, items: &[&str]) -> usize {
+    Select::new()
+    .with_prompt(prompt)
+    .items(items)
+    .default(0)
+    .interact()
+    .unwrap()
+}
+
+fn io_del_note(name: String, note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
+    if let Some(note_name) = note_map.keys()
+    .find(|key| key.to_lowercase() == name.to_lowercase()).cloned()
+    {
+        if let Some(note) = note_map.remove(&note_name) {
+            return Ok(format!(
+                "{} was removed with values:\nFreq: {}\nLast Accessed: {}",
+                note.name, note.freq, note.last_accessed
+            ));
+        } else {
+            return Err(MainError::DriverError(format!("Could not find note to remove of name {}", bold_wrap!(name))));
+        }
+    }
+    Err(MainError::DriverError(format!("Could not find note to remove of name {}", bold_wrap!(name))))
 }
