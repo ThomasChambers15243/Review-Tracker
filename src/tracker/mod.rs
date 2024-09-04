@@ -117,10 +117,10 @@ pub fn save_map(map: HashMap<String, Note>) -> Result<(), TrackerError>{
 // Prints out the hash map of notes in an arbitary order
 pub fn view_map(map: &HashMap<String, Note>) {
     for key in map.keys().sorted(){
-        println!("{}{}{} has been reviewed {}{}{} times. Last reviewed, {}{}{},\n{} ago.",
-                    ASCII["BOLD"], map[key].name, ASCII["RESET"],
-                    ASCII["BOLD"], map[key].freq, ASCII["RESET"],
-                    ASCII["BOLD"], format_time_for_output(&map[key].last_accessed), ASCII["RESET"],
+        println!("{} has been reviewed {} times. Last reviewed, {},\n{} ago.",
+                    bold_wrap!(map[key].name),
+                    bold_wrap!(map[key].freq),
+                    bold_wrap!(format_time_for_output(&map[key].last_accessed)),
                     format_time_since(&map[key].last_accessed).unwrap()
         );
     }
