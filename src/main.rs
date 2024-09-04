@@ -1,4 +1,4 @@
-use std::{collections::HashMap, process, io::{self, Write}};
+use std::{collections::HashMap, ffi::OsStr, io::{self, Write}, process};
 
 use chrono::{Local, Utc};
 // Crates
@@ -11,7 +11,7 @@ use itertools::Itertools;
 use storage::*;
 use thiserror::Error;
 use tracker::*;
-
+use walkdir::WalkDir;
 
 
 // Choice menus
@@ -169,8 +169,7 @@ bold_wrap!(format_time_since(&note_map[key].last_accessed).unwrap())
 
 fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
 
-    let choices = ["Markdown directory", "Markdown file (.md)", "Text file (.txt)"];
-    let markdown_choices = ["H1 (#)", "H2 (##)", "H3 (###)", "H4 (####)", "H5 (#####)", "H6 (######)"];
+    let choices = ["Markdown directory", "Markdown file (.md)", "Text file (.txt)"];    
 
     let choice = Select::new()
         .with_prompt("Select where you would like to generate new notes from")
@@ -180,28 +179,37 @@ fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, Mai
         .unwrap();
 
     match choices[choice] {
-        "Markdown directory" => {
-            todo!("")
+        "Markdown directory" => { 
+            // List of all markdown files found, if emtpy, none found. Maybe invalid root name.
+            let mut files_found: Vec<String> = Vec::new();
+            let root = io_get_file_path("");            
+            for entry in WalkDir::new(root).into_iter().filter_map(Result::ok) {
+                let path = entry.path();
+                if path.is_file() {                    
+                    match path.extension().and_then(OsStr::to_str) {
+                        Some("md") => {
+                            if let Ok(_) = io_get_notes_from_markdown(path.to_str().unwrap().to_string(), note_map) {
+                                files_found.push(path.file_name().unwrap().to_str().unwrap().to_string());
+                            }
+                        },
+                        _ => (),
+                    };
+                }
+            }
+            // If not dir is found with given file path
+            if !files_found.is_empty() {
+                Ok(format!("Notes added from files:\n{}",files_found.join("\n")))
+            } else {
+                Err(MainError::DriverError("Could not Find directory".to_string()))
+            }
         },
         // Make down and text use the same code but with
         "Markdown file (.md)" => {
             // Gets file path
-            let file_path = io_get_file_path(".md");
-            // Gets the min_hashes for markdown parsing
-            let header_length = Select::new()
-            .with_prompt("Whats the smallest header type you would like to include")
-            .items(&markdown_choices)
-            .default(0)
-            .interact()
-            .unwrap();
-            // Gets header names
-            match get_note_names_from_markdown(file_path.as_str(), header_length+1) {
-                Ok(note_names) => {
-                    io_create_new_notes_from_vec(note_names, note_map);      
-                    Ok(format!("New Notes successfully added from file {}", bold_wrap!(file_path)))
-                },
-                Err(e) => Err(MainError::DriverError(format!(
-                    "Could not get names, due to error: {e}"))),
+            let file_path = io_get_file_path("");
+            match io_get_notes_from_markdown(file_path, note_map) {
+                Ok(msg) => Ok(msg),
+                Err(e) => Err(e),
             }
         },
         "Text file (.txt)" => {
@@ -372,4 +380,24 @@ fn io_create_new_notes_from_vec(note_names: Vec<String>, note_map: &mut HashMap<
     for name in note_names {
         note_map.insert(name.clone(), Note::new(name, 0, Local::now().to_string()));
     }            
+}
+
+fn io_get_notes_from_markdown(file_path: String, note_map: &mut HashMap<String, Note>) -> Result<String, MainError>{
+    let markdown_choices = ["H1 (#)", "H2 (##)", "H3 (###)", "H4 (####)", "H5 (#####)", "H6 (######)"];
+    // Gets the min_hashes for markdown parsing
+    let header_length = Select::new()
+    .with_prompt(format!("Whats the smallest header type you would like to include for file:{}", file_path))
+    .items(&markdown_choices)
+    .default(0)
+    .interact()
+    .unwrap();
+    // Gets header names
+    match get_note_names_from_markdown(file_path.as_str(), header_length+1) {
+        Ok(note_names) => {
+            io_create_new_notes_from_vec(note_names, note_map);      
+            Ok(format!("New Notes successfully added from file {}", bold_wrap!(file_path)))
+        },
+        Err(e) => Err(MainError::DriverError(format!(
+            "Could not get names, due to error: {e}"))),
+    }
 }

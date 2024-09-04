@@ -50,13 +50,15 @@ Architecture
 - [ ] Write read me
 - [x] Can store notes, handle, view and review notes
 - [x] Generate notes from .txt file of names per line
+- [ ] Can edit note names
 - [ ] Get headers from dir containing .md files
 ### Future track
 - [ ] Markdown Note storage (obsidian wrapper?)
 - [ ] OpenAI intergration to generate quetions based of notes
 
 # ToDo
-- Sort through markdown files and extract note titiles as headers
+- Have option for pre-fix to header note names when scraping from markdown
+
 - Improve map view sort in tracker to sort by 
 	1. name
 	2. Freq
