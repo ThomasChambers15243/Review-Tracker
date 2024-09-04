@@ -155,13 +155,14 @@ pub fn get_note_names_from_markdown(path: &str, min_hashes: usize) -> Result<Vec
 
 // Gets the title from the line if its <= to min in importance
 fn parse_markdown_headers_from_line(line: &str, min_hashes: usize) -> Option<String> {
-    let mut hashes = 0;
-
+    let mut hashes = 0;    
     let mut char_indicies = line.char_indices();
     while let Some((index, char)) = char_indicies.next() {
         if ![' ','#'].contains(&char) {
             return None;
         } else {
+            // REMOVE
+            println!("{}",line);
             if char == '#'{
                 hashes += 1;
                 while let Some((_, new_char)) = char_indicies.next() {

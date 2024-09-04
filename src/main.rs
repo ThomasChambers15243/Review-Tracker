@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ffi::OsStr, io::{self, Write}, process};
+use std::{collections::HashMap, ffi::OsStr, io::{self, Write}, path::Prefix, process};
 
 use chrono::{Local, Utc};
 // Crates
@@ -218,7 +218,8 @@ fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, Mai
             // Gets note names
             match get_note_names_from_file(file_path.as_str()) {
                 Ok(note_names) => {
-                    io_create_new_notes_from_vec(note_names, note_map);      
+                    let prefix = io_get_prefix();
+                    io_create_new_notes_from_vec(prefix, note_names, note_map);      
                     Ok(format!("New Notes successfully added from file {}", bold_wrap!(file_path)))
                 },
                 Err(e) => Err(MainError::DriverError(format!(
@@ -376,9 +377,11 @@ fn io_get_file_path(file_type: &str) -> String{
     .unwrap()
 }
 
-fn io_create_new_notes_from_vec(note_names: Vec<String>, note_map: &mut HashMap<String, Note>) {    
+fn io_create_new_notes_from_vec(prefix: String, note_names: Vec<String>, note_map: &mut HashMap<String, Note>) {    
     for name in note_names {
-        note_map.insert(name.clone(), Note::new(name, 0, Local::now().to_string()));
+        let mut note_name: String = prefix.clone();
+        note_name.push_str(name.as_str());
+        note_map.insert(note_name.clone(), Note::new(note_name, 0, Local::now().to_string()));
     }            
 }
 
@@ -394,10 +397,30 @@ fn io_get_notes_from_markdown(file_path: String, note_map: &mut HashMap<String, 
     // Gets header names
     match get_note_names_from_markdown(file_path.as_str(), header_length+1) {
         Ok(note_names) => {
-            io_create_new_notes_from_vec(note_names, note_map);      
+            let prefix = io_get_prefix();
+            io_create_new_notes_from_vec(prefix, note_names, note_map);      
             Ok(format!("New Notes successfully added from file {}", bold_wrap!(file_path)))
         },
         Err(e) => Err(MainError::DriverError(format!(
             "Could not get names, due to error: {e}"))),
+    }
+}
+
+fn io_get_prefix() -> String {
+    let is_prefix = Select::new()
+        .with_prompt("Would you like to add a prefix to the names?\n([prefix][NoteName])")
+        .items(YES_NO_CHOICES)
+        .default(1)
+        .interact()
+        .unwrap();
+    
+    match YES_NO_CHOICES[is_prefix] {
+        "YES" => {
+            Input::new()
+            .with_prompt(format!("Enter prefix\n{}", bold_wrap!("Enter a seperator if desired, otherwise none are added")))
+            .interact()
+            .unwrap()
+        },
+        _ => "".to_string()
     }
 }
