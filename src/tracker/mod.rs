@@ -1,6 +1,5 @@
 use crate::storage::*;
 use std::collections::HashMap;
-use chrono::{ParseError, TimeDelta};
 use thiserror::Error;
 use itertools::Itertools;
 use chrono::prelude::*;
@@ -89,7 +88,7 @@ pub enum TrackerError{
     DateTimeFormatting(String),
 
     #[error("{0}")]
-    DateTime(#[from] ParseError),
+    DateTime(#[from] chrono::ParseError),
 
     #[error("There was an unexpected error: {0}")]
     Custom(String)
@@ -211,7 +210,7 @@ fn calculate_time_difference(dt1: DateTime<Utc>, dt2: DateTime<Utc>) -> Result<H
     }
     // Holds years, months, days, hours, minutes, seconds
     let mut duration_since: HashMap<String, i64> = HashMap::new();
-    let difference: TimeDelta = dt1 - dt2;
+    let difference: chrono::TimeDelta = dt1 - dt2;
     
     duration_since.insert("days".to_string(), difference.num_days());
     duration_since.insert("hours".to_string(), difference.num_hours());

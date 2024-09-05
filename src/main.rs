@@ -102,18 +102,11 @@ fn main() {
                 handle_map_operation(&mut note_map, |m| io_remove_note(m));
             }
             "View Notes" => {
-                // Handle case where map is empty
-                if !note_map.is_empty() {
-                    io_view_map(&note_map)
-                } 
-                match io_handle_empty_map(&note_map) {
-                    Ok(_) => io_view_map(&note_map),
-                    Err(message) => println!("{}", message),
-                }
+                handle_map_operation(&mut note_map, |m| io_view_map(&m));
             },
             "Edit Note" => {
-                
-            }
+                handle_map_operation(&mut note_map, |m| io_edit_note_map(m));
+            },
             "Generate Review" => {
                 handle_map_operation(&mut note_map, |m| io_generate_review(m));
             },
@@ -175,7 +168,8 @@ where
     };
 }
 
-fn io_view_map(note_map: &HashMap<String, Note>) {
+fn io_view_map(note_map: &HashMap<String, Note>) -> Result<String, MainError>{
+    io_handle_empty_map(note_map)?;
     println!("{}",bold_wrap!("...Notes..."));
     for key in note_map.keys().sorted(){
         println!("Note {} 
@@ -187,8 +181,8 @@ bold_wrap!(note_map[key].freq),
 bold_wrap!(format_time_for_output(&note_map[key].last_accessed)),
 bold_wrap!(format_time_since(&note_map[key].last_accessed).unwrap())
         );
-    }
-    //println!("\n");
+    }   
+    Ok("".to_string())
 }
 
 fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
@@ -460,13 +454,20 @@ fn io_get_prefix() -> String {
     }
 }
 
-fn select_wrapper(prompt: &str, items: &[&str]) -> usize {
+fn select_wrapper<T: ToString>(prompt: &str, items: &[T]) -> usize {
     Select::with_theme(&ColorfulTheme::default())
     .with_prompt(prompt)
     .items(items)
     .default(0)
     .interact()
     .unwrap()
+}
+
+fn input_wrapper(prompt: &str) -> String {
+    Input::with_theme(&ColorfulTheme::default())
+                .with_prompt(prompt)
+                .interact()
+                .unwrap()
 }
 
 fn io_del_note(name: String, note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
@@ -483,4 +484,91 @@ fn io_del_note(name: String, note_map: &mut HashMap<String, Note>) -> Result<Str
         }
     }
     Err(MainError::DriverError(format!("Could not find note to remove of name {}", bold_wrap!(name))))
+}
+
+fn io_edit_note_map(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
+    io_handle_empty_map(note_map)?;
+    let search_option = ["Search", "Selection"];
+    let choice = select_wrapper("Search by name or selection", &search_option);
+    match search_option[choice] {
+        "Search" => {
+            let name: String = input_wrapper("Enter Note Name");
+            // If note exists, display attributes and give user options
+            // for editing notes name and freq
+            if let Some(note_name) = find_note_name(&name, note_map) {
+                let note: &mut Note = note_map.get_mut(&note_name).unwrap();
+                println!("Name: {}\nFreq: {}\nLast Accessed: {}",
+                    bold_wrap!(note.name),
+                    bold_wrap!(note.freq),                    
+                    bold_wrap!(format_time_for_output(&note.last_accessed))
+                );
+                io_edit_note(note);            
+                Ok("Note was updated".to_string())
+            } else {
+                Err(MainError::DriverError("Couldn't find note".to_string()))
+            }
+
+        },
+        "Selection" | _ =>  {
+            io_select_all_note(note_map);
+            Ok("".to_string())
+        }
+    }
+
+}
+
+
+// Opens editing an idividual note for the uiser
+fn io_edit_note(note: &mut Note) {
+    let attr = ["Name", "Freq", "Save"];
+    loop {        
+        // Edit Note
+        match attr[select_wrapper("What would you like to edit?", &attr)] {
+            "Name" => {
+                note.name = input_wrapper("Enter new name");
+                println!("{}", green_wrap!(format!("Name set to {}", bold_wrap!(note.name))));
+            },
+            "Freq" => {
+                // Unwrap will always pass due to validator
+                note.freq = Input::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Enter the freq")
+                        .validate_with(|input: &String| -> Result<(),&str> {
+                            match input.parse::<u16>() {
+                                Ok(_) => Ok(()),
+                                Err(_) => Err("Must enter a positive number"),
+                            }
+                        })
+                        .interact()
+                        .unwrap().parse::<u16>().unwrap();
+                println!("{}", green_wrap!(format!("Note Freq set to {}", bold_wrap!(note.freq))));
+            },
+            "Save" | _ => {
+                return
+            }
+       }
+    }
+}
+
+fn io_select_all_note(note_map: &mut HashMap<String, Note>) {
+    let mut all_notes: Vec<&mut Note> = note_map.values_mut().collect();
+    
+    loop {
+        let choice = select_wrapper("prompt", &all_notes);
+        io_edit_note(all_notes[choice]);
+        match YES_NO_CHOICES[select_wrapper("Edit Another?", YES_NO_CHOICES)] {
+            "YES" => (),
+            _ => return,
+        }
+    }
+    
+}
+
+fn find_note_name(name: &str, note_map: &mut HashMap<String, Note>) -> Option<String> {
+    if let Some(note_name) = note_map.keys()
+        .find(|key| key.to_lowercase() == name.to_lowercase()).cloned()
+    {
+        Some(note_name)
+    } else {
+        None
+    }
 }

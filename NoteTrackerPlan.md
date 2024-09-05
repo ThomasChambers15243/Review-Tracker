@@ -53,15 +53,15 @@ Architecture
 - [X] Get headers from dir containing .md files
 - [X] Can mass delete from markdown and txt files
 - [ ] Can edit note names
+- [ ] Clean up code
 ### Future track
 - [ ] Save profiles for seperate note collections
 - [ ] Markdown Note storage (obsidian wrapper?)
 - [ ] OpenAI intergration to generate quetions based of notes
 
 # ToDo
-- Can delete notes using files
 - Can edit note names
-- Convert Local::Now() to UTC::Now()
+- Reorganise code to clean up main
 - Improve error system so everything isn't just MainError::DriverError(String)
 
 - Improve map view sort in tracker to sort by 
