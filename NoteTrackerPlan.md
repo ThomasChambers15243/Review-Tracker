@@ -51,7 +51,7 @@ Architecture
 - [x] Can store notes, handle, view and review notes
 - [x] Generate notes from .txt file of names per line
 - [X] Get headers from dir containing .md files
-- [ ] Can mass delete from markdown and txt files
+- [X] Can mass delete from markdown and txt files
 - [ ] Can edit note names
 ### Future track
 - [ ] Save profiles for seperate note collections

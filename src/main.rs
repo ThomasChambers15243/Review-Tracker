@@ -20,7 +20,7 @@ const YES_NO_CHOICES: &'static [&str;2] = &["YES", "NO"];
 const MAIN_MENU_CHOICES: &'static [&str;8] = &[
     "Add Note",
     "View Notes",
-    "Edit Notes",
+    "Edit Note",
     "Remove Note",
     "Generate Review",
     "Generate Notes",
@@ -104,6 +104,9 @@ fn main() {
                     Err(message) => println!("{}", message),
                 }
             },
+            "Edit Note" => {
+                
+            }
             "Generate Review" => {
                 handle_map_operation(&mut note_map, |m| io_generate_review(m));
             },
@@ -302,22 +305,19 @@ fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, MainEr
 }
 
 fn io_remove_notes_wth_file(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
-
-    let mut file_path = String::new();
-    let mut names: Vec<String> = Vec::new();
     let file_types = ["Markdown (.md)", "Text (.txt)"];
     let choice = select_wrapper("Select file type", &file_types);
 
     match file_types[choice] {
         "Markdown (.md)" => {
-            file_path = io_get_file_path(".md");
+            let file_path = io_get_file_path(".md");
             // Gets the min_hashes for markdown parsing
             let markdown_choices = ["H1 (#)", "H2 (##)", "H3 (###)", "H4 (####)", "H5 (#####)", "H6 (######)"];
             let header_length = select_wrapper(
                 format!("Whats the smallest header type you would like to include for file:{}", file_path).as_str(),
                         &markdown_choices
             );            
-            names = get_note_names_from_markdown(file_path.as_str(), header_length)?;
+            let names = get_note_names_from_markdown(file_path.as_str(), header_length)?;
             let prefix = io_get_prefix();
             
             for name in names {
@@ -331,7 +331,7 @@ fn io_remove_notes_wth_file(note_map: &mut HashMap<String, Note>) -> Result<Stri
             Ok("Any notes found were removed...".to_string())
         },
         "Text (.txt)" => {
-            file_path = io_get_file_path(".txt");
+            let file_path = io_get_file_path(".txt");
 
             match get_note_names_from_file(file_path.as_str()) {
                 Ok(names) => {
