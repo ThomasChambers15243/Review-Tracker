@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error, ffi::OsStr, io::{self, Write}, path::Prefix, process};
+use std::{collections::HashMap, ffi::OsStr, io::{self, Write}, process};
 
 use chrono::{Local, Utc};
 // Crates
@@ -46,6 +46,9 @@ enum MainError {
 fn main() {
     // Loads in notes
     println!("Loading...");
+
+    // Main map of notes used throughout.
+    // If it cannot be loaded, the process is ended :(
     let mut note_map: HashMap<String, Note>;
     match load_map() {
         Ok(map) => note_map = map,
@@ -56,22 +59,24 @@ fn main() {
     }
 
     // Enable screen clearing
-    let clear_choice = Select::new()
-        .with_prompt(format!("Enable screen clearning\n{}Warning{} - Wipes current terminal",ASCII["RED"],ASCII["RESET"]))
-        .items(YES_NO_CHOICES)
-        .default(0)
-        .interact()
-        .unwrap();
+    let clear_choice = select_wrapper(
+        format!("Enable screen clearning\n{} - Wipes current terminal", red_wrap!("Warning")).as_str(),
+        YES_NO_CHOICES);
+    // Unsafe as due to modification of mutable static
+    // This is the only time theres any change so its chill
     unsafe {
         match YES_NO_CHOICES[clear_choice] {
             "YES" => CLEAR = true,
             _ => CLEAR = false,
+        }
     }
-}
 
     // Main Loop
     clear_screen();
     loop {
+        // Saves map at the start of every loop, this might be changed later
+        // depending on performance costs.
+        // Ends process if it cannot sync (it always should if it can at the start)
         match sync_map(note_map) {
             Ok(map) => note_map = map,
             Err(e) => {
@@ -80,12 +85,11 @@ fn main() {
             },
         }
 
-        let menu_choice = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Main Menu")
-        .items(MAIN_MENU_CHOICES)
-        .default(0)
-        .interact()
-        .unwrap();
+        // Gets main menu choice from user
+        let menu_choice = select_wrapper(
+            "Main Menu",
+            MAIN_MENU_CHOICES
+        );
     
         // Reset Screen after selection, leaving the result message from the last
         // message on screen for the user
@@ -99,6 +103,9 @@ fn main() {
             }
             "View Notes" => {
                 // Handle case where map is empty
+                if !note_map.is_empty() {
+                    io_view_map(&note_map)
+                } 
                 match io_handle_empty_map(&note_map) {
                     Ok(_) => io_view_map(&note_map),
                     Err(message) => println!("{}", message),
@@ -141,8 +148,11 @@ fn sync_map(note_map: HashMap<String, Note>) -> Result<HashMap<String, Note>, Ma
     }
 }
 
+// Restore cursor to the saved position and clear everything below
 fn clear_screen() {
-    // Restore cursor to the saved position and clear everything below
+    // Unsafe as CLEAr is a mutabable static, however, its only ever changed once 
+    // at the start of the main loop. It should never change again, this should
+    // always work
     unsafe {
         if CLEAR {
             print!("\x1B[2J\x1B[H");
@@ -185,12 +195,7 @@ fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, Mai
 
     let choices = ["Markdown directory", "Markdown file (.md)", "Text file (.txt)"];    
 
-    let choice = Select::new()
-        .with_prompt("Select where you would like to generate new notes from")
-        .items(&choices)
-        .default(0)
-        .interact()
-        .unwrap();
+    let choice = select_wrapper("Select where you would like to generate new notes from", &choices);    
 
     match choices[choice] {
         "Markdown directory" => { 
@@ -364,32 +369,28 @@ fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, Ma
     format_review(&uncommon, &oldest);
 
     // Save Review
-    let save = Select::new()
-    .with_prompt("Save Review?")
-    .items(YES_NO_CHOICES)
-    .default(0)
-    .interact()
-    .unwrap();
+    let save = select_wrapper("Save Review?", YES_NO_CHOICES);
 
-match YES_NO_CHOICES[save] {
-    "YES" => {
-            // Join together two sets of notes and update them in the json file
-            uncommon.append(&mut oldest);
-            update_reviewed_notes(note_map, uncommon);
-            Ok("Notes Saved".to_string())
-        },
-        _ => Err(MainError::DriverError("Notes were not saved".to_string()))
-    }
+    match YES_NO_CHOICES[save] {
+        "YES" => {
+                // Join together two sets of notes and update them in the json file
+                uncommon.append(&mut oldest);
+                update_reviewed_notes(note_map, uncommon);
+                Ok("Notes Saved".to_string())
+            },
+            _ => Err(MainError::DriverError("Notes were not saved".to_string()))
+        }
 }
 
 
+// Handle error handling wheen map is empty
 fn io_handle_empty_map(note_map: &HashMap<String, Note>) -> Result<String, MainError> {
-    // Check map is empty
-    match note_map.is_empty() {
-        true => Err(MainError::DriverError(format!(
-                "{}No notes to review\nTry adding some notes with {}",
-                ASCII["GREEN"], bold_wrap!("Add Note")).to_string())),
-        false => Ok("".to_string()),
+    if !note_map.is_empty() {
+        Ok("".to_string())
+    } else {
+        Err(MainError::DriverError(format!("{}{}",
+        green_wrap!("No notes to review\nTry adding some notes with "),
+        bold_wrap!("Add Note")).to_string()))
     }
 }
 
@@ -402,9 +403,9 @@ fn io_get_file_path(file_type: &str) -> String{
         if input.chars().count() < file_type.len() {
             println!("File Path must end with {}", file_type);
             return Err("Try again");
-        }    
-        // Reverses string a chars, takes the first 4, then reverses it again    
-        let last_four: String = input.chars().rev().take(file_type.len()).collect::<Vec<_>>().into_iter().rev().collect();            
+        }
+        // Reverses string a chars, takes the first 4, then reverses it again
+        let last_four: String = input.chars().rev().take(file_type.len()).collect::<Vec<_>>().into_iter().rev().collect();
         if last_four != file_type {
             println!("File Path must end with {}", file_type);
             Err("")
@@ -416,7 +417,7 @@ fn io_get_file_path(file_type: &str) -> String{
     .unwrap()
 }
 
-fn io_create_new_notes_from_vec(prefix: String, note_names: Vec<String>, note_map: &mut HashMap<String, Note>) {    
+fn io_create_new_notes_from_vec(prefix: String, note_names: Vec<String>, note_map: &mut HashMap<String, Note>) {
     for name in note_names {
         let mut note_name: String = prefix.clone();
         note_name.push_str(name.as_str());
@@ -429,7 +430,7 @@ fn io_get_notes_from_markdown(file_path: String, note_map: &mut HashMap<String, 
     // Gets the min_hashes for markdown parsing
     let header_length = select_wrapper(
         format!("Whats the smallest header type you would like to include for file:{}", file_path).as_str(),
-                &markdown_choices
+    &markdown_choices
     );
     // Gets header names
     match get_note_names_from_markdown(file_path.as_str(), header_length+1) {
@@ -444,17 +445,14 @@ fn io_get_notes_from_markdown(file_path: String, note_map: &mut HashMap<String, 
 }
 
 fn io_get_prefix() -> String {
-    let is_prefix = Select::new()
-        .with_prompt("Would you like to add a prefix to the names?\n([prefix][NoteName])")
-        .items(YES_NO_CHOICES)
-        .default(1)
-        .interact()
-        .unwrap();
-    
+    let is_prefix = select_wrapper(
+        "Would you like to add a prefix to the names?\n([prefix][NoteName])", 
+        YES_NO_CHOICES);
     match YES_NO_CHOICES[is_prefix] {
         "YES" => {
             Input::new()
-            .with_prompt(format!("Enter prefix\n{}", bold_wrap!("Enter a seperator if desired, otherwise none are added")))
+            .with_prompt(format!("Enter prefix\n{}", 
+                bold_wrap!("Enter a seperator if desired, otherwise none are added")))
             .interact()
             .unwrap()
         },
@@ -463,7 +461,7 @@ fn io_get_prefix() -> String {
 }
 
 fn select_wrapper(prompt: &str, items: &[&str]) -> usize {
-    Select::new()
+    Select::with_theme(&ColorfulTheme::default())
     .with_prompt(prompt)
     .items(items)
     .default(0)

@@ -61,6 +61,8 @@ Architecture
 # ToDo
 - Can delete notes using files
 - Can edit note names
+- Convert Local::Now() to UTC::Now()
+- Improve error system so everything isn't just MainError::DriverError(String)
 
 - Improve map view sort in tracker to sort by 
 	1. name
