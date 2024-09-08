@@ -1,17 +1,17 @@
 use std::{collections::HashMap, ffi::OsStr, io::{self, Write}, process};
 
-use chrono::{Local, Utc};
 // Crates
 use dialoguer::{theme::ColorfulTheme, Input, Select};
+use itertools::Itertools;
+use chrono::Local;
+use thiserror::Error;
+use walkdir::WalkDir;
 
 // Mods
 pub mod storage;
 pub mod tracker;
-use itertools::Itertools;
 use storage::*;
-use thiserror::Error;
 use tracker::*;
-use walkdir::WalkDir;
 
 
 // Choice menus
@@ -168,6 +168,7 @@ where
     };
 }
 
+// Prints out each note in map, formatted along with note details
 fn io_view_map(note_map: &HashMap<String, Note>) -> Result<String, MainError>{
     io_handle_empty_map(note_map)?;
     println!("{}",bold_wrap!("...Notes..."));
@@ -185,10 +186,10 @@ bold_wrap!(format_time_since(&note_map[key].last_accessed).unwrap())
     Ok("".to_string())
 }
 
+// Input/Output options and handling for generating notes from markdown directorys,
+// markdown files or .txt files
 fn io_generate_notes(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
-
     let choices = ["Markdown directory", "Markdown file (.md)", "Text file (.txt)"];    
-
     let choice = select_wrapper("Select where you would like to generate new notes from", &choices);    
 
     match choices[choice] {
@@ -303,6 +304,7 @@ fn io_remove_note(note_map: &mut HashMap<String, Note>) -> Result<String, MainEr
     
 }
 
+// Given a .txt or .md files, removes matching names
 fn io_remove_notes_wth_file(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
     let file_types = ["Markdown (.md)", "Text (.txt)"];
     let choice = select_wrapper("Select file type", &file_types);
@@ -352,6 +354,8 @@ fn io_remove_notes_wth_file(note_map: &mut HashMap<String, Note>) -> Result<Stri
     }
 }
 
+// Handles the review, getting the notes to review, fomratting their display and upadting 
+// the notes's values.
 fn io_generate_review(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
     // Handle case where map is empty
     io_handle_empty_map(note_map)?;
@@ -388,7 +392,7 @@ fn io_handle_empty_map(note_map: &HashMap<String, Note>) -> Result<String, MainE
     }
 }
 
-
+// Gets and validates files path accoring to given types
 fn io_get_file_path(file_type: &str) -> String{
     // Gets file path
     Input::new()
@@ -411,6 +415,8 @@ fn io_get_file_path(file_type: &str) -> String{
     .unwrap()
 }
 
+// Given a vector of strings and a prefix, inserts the prefix to each name and creates a new note with
+// said name into the map
 fn io_create_new_notes_from_vec(prefix: String, note_names: Vec<String>, note_map: &mut HashMap<String, Note>) {
     for name in note_names {
         let mut note_name: String = prefix.clone();
@@ -419,6 +425,7 @@ fn io_create_new_notes_from_vec(prefix: String, note_names: Vec<String>, note_ma
     }            
 }
 
+// Get notes from header names in a markdown file, according to the given header level, and adds it to the map
 fn io_get_notes_from_markdown(file_path: String, note_map: &mut HashMap<String, Note>) -> Result<String, MainError>{
     let markdown_choices = ["H1 (#)", "H2 (##)", "H3 (###)", "H4 (####)", "H5 (#####)", "H6 (######)"];
     // Gets the min_hashes for markdown parsing
@@ -438,6 +445,7 @@ fn io_get_notes_from_markdown(file_path: String, note_map: &mut HashMap<String, 
     }
 }
 
+// User options to get a prefix string
 fn io_get_prefix() -> String {
     let is_prefix = select_wrapper(
         "Would you like to add a prefix to the names?\n([prefix][NoteName])", 
@@ -454,6 +462,7 @@ fn io_get_prefix() -> String {
     }
 }
 
+// Wrapper around dialoger's Select struct
 fn select_wrapper<T: ToString>(prompt: &str, items: &[T]) -> usize {
     Select::with_theme(&ColorfulTheme::default())
     .with_prompt(prompt)
@@ -463,6 +472,7 @@ fn select_wrapper<T: ToString>(prompt: &str, items: &[T]) -> usize {
     .unwrap()
 }
 
+// Wrapper around dialoger's Input struct
 fn input_wrapper(prompt: &str) -> String {
     Input::with_theme(&ColorfulTheme::default())
                 .with_prompt(prompt)
@@ -470,6 +480,7 @@ fn input_wrapper(prompt: &str) -> String {
                 .unwrap()
 }
 
+// Delete note with given name from map
 fn io_del_note(name: String, note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
     if let Some(note_name) = note_map.keys()
     .find(|key| key.to_lowercase() == name.to_lowercase()).cloned()
@@ -486,6 +497,7 @@ fn io_del_note(name: String, note_map: &mut HashMap<String, Note>) -> Result<Str
     Err(MainError::DriverError(format!("Could not find note to remove of name {}", bold_wrap!(name))))
 }
 
+// Edit note with given name from map
 fn io_edit_note_map(note_map: &mut HashMap<String, Note>) -> Result<String, MainError> {
     io_handle_empty_map(note_map)?;
     let search_option = ["Search", "Selection"];
@@ -518,7 +530,7 @@ fn io_edit_note_map(note_map: &mut HashMap<String, Note>) -> Result<String, Main
 }
 
 
-// Opens editing an idividual note for the uiser
+// Opens editing an idividual note for the user
 fn io_edit_note(note: &mut Note) {
     let attr = ["Name", "Freq", "Save"];
     loop {        
@@ -549,9 +561,9 @@ fn io_edit_note(note: &mut Note) {
     }
 }
 
+// Input for browsing through all notes
 fn io_select_all_note(note_map: &mut HashMap<String, Note>) {
-    let mut all_notes: Vec<&mut Note> = note_map.values_mut().collect();
-    
+    let mut all_notes: Vec<&mut Note> = note_map.values_mut().collect();    
     loop {
         let choice = select_wrapper("prompt", &all_notes);
         io_edit_note(all_notes[choice]);
@@ -563,6 +575,7 @@ fn io_select_all_note(note_map: &mut HashMap<String, Note>) {
     
 }
 
+// Finds the note in the map if it exists
 fn find_note_name(name: &str, note_map: &mut HashMap<String, Note>) -> Option<String> {
     if let Some(note_name) = note_map.keys()
         .find(|key| key.to_lowercase() == name.to_lowercase()).cloned()

@@ -54,10 +54,12 @@ Architecture
 - [X] Can mass delete from markdown and txt files
 - [ ] Can edit note names
 - [ ] Clean up code
+- [ ] Include links
 ### Future track
 - [ ] Save profiles for seperate note collections
 - [ ] Markdown Note storage (obsidian wrapper?)
 - [ ] OpenAI intergration to generate quetions based of notes
+= [ ] SpellCheck - with https://norvig.com/spell-correct.html
 
 # ToDo
 - Can edit note names

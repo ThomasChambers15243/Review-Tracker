@@ -22,7 +22,7 @@ lazy_static! {
     };
 }
 
-
+// Wrap given arguments in ascii escape code bold
 #[macro_export]
 macro_rules! bold_wrap {
     ($single:expr) => {
@@ -40,6 +40,7 @@ macro_rules! bold_wrap {
     };
 }
 
+// Wrap given arguments in ascii escape code green
 #[macro_export]
 macro_rules! green_wrap {
     ($single:expr) => {
@@ -57,6 +58,7 @@ macro_rules! green_wrap {
     };
 }
 
+// Wrap given arguments in ascii escape code red
 #[macro_export]
 macro_rules! red_wrap {
     ($single:expr) => {
@@ -145,6 +147,7 @@ pub fn manual_note_update(note_map: HashMap<String, Note>, freq: u16, last_acces
 
 // Review Calculations \\
 
+// Sorts notes by which ones have been reviewed the least and which ones are the oldest
 pub fn get_notes_to_review(note_map: &HashMap<String, Note>) -> (Vec<Note>, Vec<Note>) {
     let mut notes: Vec<&Note> = note_map.values().collect();
 
@@ -172,6 +175,7 @@ pub fn get_notes_to_review(note_map: &HashMap<String, Note>) -> (Vec<Note>, Vec<
 }
 
 
+// Formats the review text
 pub fn format_review(uncommon: &Vec<Note>, oldest: &Vec<Note>) {
     // Title
     println!("{}\n",bold_wrap!("...Notes to Review..."));
@@ -221,7 +225,7 @@ fn calculate_time_difference(dt1: DateTime<Utc>, dt2: DateTime<Utc>) -> Result<H
 }
 
 
-
+// Converts the UTC time into a format more human readable
 pub fn format_time_for_output(time: &str) -> String {    
     let utc_time = DateTime::parse_from_str(
         time,
@@ -230,8 +234,12 @@ pub fn format_time_for_output(time: &str) -> String {
     format!("{}", utc_time.format("%Y-%m-%d %H:%M:%S"))
 }
 
-pub fn format_time_since(time: &str) -> Result<String, TrackerError> {
-    
+// Formats the output time into 
+// days, hours, minutes, seconds, since the give date,
+// compared to UTC::now()
+// Shows the largest time value, so
+// 70 seconds == 1 minutes 10 seocnds
+pub fn format_time_since(time: &str) -> Result<String, TrackerError> {    
     let date: DateTime<Utc> = DateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S%.9f %z")?.into();
     
     match calculate_time_difference(Utc::now(), date) {
